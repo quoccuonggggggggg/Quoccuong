@@ -1348,6 +1348,16 @@ export default function App() {
 
   useEffect(() => {
     const fetchData = async () => {
+      // Fetch current logged in user and set name/email to user's email
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user && user.email) {
+        setAdminProfile(prev => ({
+          ...prev,
+          name: user.email,
+          email: user.email
+        }));
+      }
+
       // Fetch warehouses
       const { data: whData } = await supabase.from('warehouses').select('*');
       if (whData) setWhs(whData.map(w => ({

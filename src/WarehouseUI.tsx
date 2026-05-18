@@ -743,7 +743,7 @@ function WarehousesPage({ whs, setWhs, prods, showT }) {
               <tr key={`h-${cat}`}><td colSpan={8} style={{ background:"var(--b3)", padding:"5px 13px", fontSize:11, fontWeight:700, color:"var(--t3)", textTransform:"uppercase", letterSpacing:.7 }}>📦 {cat} — {items.length} sản phẩm</td></tr>,
               ...items.map(p => (
                 <tr key={p.id}>
-                  <td><span className="mn" style={{ fontSize:12, color:"var(--t2)" }}>{p.id}</span></td>
+                  <td><span className="mn" style={{ fontSize:12, color:"var(--t2)" }}>{p.sku}</span></td>
                   <td><div style={{ display:"flex", alignItems:"center", gap:7 }}><span style={{ fontSize:18 }}>{p.img}</span><span style={{ fontWeight:600, fontSize:13 }}>{p.name}</span></div></td>
                   <td><span className="bdg bb">{p.category}</span></td>
                   <td><span className="bdg bc">{p.loc || "—"}</span></td>
@@ -1339,10 +1339,63 @@ function UsersPage({ users, setUsers, showT }) {
 
 function ReportsPage({ prods, imps, exps, dark }) {
   const tc = dark ? "#94A3B8" : "#64748B"; const gc = dark ? "rgba(148,163,184,.06)" : "rgba(0,0,0,.05)";
+
+  const dynamicPie = useMemo(() => {
+    const totalVal = prods.reduce((s, p) => s + p.stock * p.buyPrice, 0) || 1;
+    const cats = [...new Set(prods.map(p => p.category))];
+    const colors = ["#2563EB", "#8B5CF6", "#06B6D4", "#14B8A6", "#F59E0B", "#EF4444", "#EC4899", "#10B981"];
+    return cats.map((c, i) => {
+      const val = prods.filter(p => p.category === c).reduce((s, p) => s + p.stock * p.buyPrice, 0);
+      return {
+        n: c,
+        v: Math.round((val / totalVal) * 100) || 0,
+        c: colors[i % colors.length]
+      };
+    }).filter(item => item.v > 0);
+  }, [prods]);
+
+  const dynamicBar = useMemo(() => {
+    const months = [];
+    const d = new Date();
+    for (let i = 5; i >= 0; i--) {
+      const targetDate = new Date(d.getFullYear(), d.getMonth() - i, 1);
+      const mLabel = `T${targetDate.getMonth() + 1}/${String(targetDate.getFullYear()).slice(-2)}`;
+      months.push({
+        label: mLabel,
+        year: targetDate.getFullYear(),
+        month: targetDate.getMonth()
+      });
+    }
+
+    return months.map(m => {
+      const impTotal = imps
+        .filter(o => o.status === "completed")
+        .filter(o => {
+          const od = new Date(o.date);
+          return od.getFullYear() === m.year && od.getMonth() === m.month;
+        })
+        .reduce((sum, o) => sum + orderTotal(o.items), 0);
+
+      const expTotal = exps
+        .filter(o => o.status === "completed")
+        .filter(o => {
+          const od = new Date(o.date);
+          return od.getFullYear() === m.year && od.getMonth() === m.month;
+        })
+        .reduce((sum, o) => sum + orderTotal(o.items), 0);
+
+      return {
+        m: m.label,
+        n: Math.round(impTotal / 1000000) || 0,
+        x: Math.round(expTotal / 1000000) || 0
+      };
+    });
+  }, [imps, exps]);
+
   const exportExcel = () => {
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.json_to_sheet(prods.map(p => ({
-      "Mã SP": p.id, "Tên SP": p.name, "Danh mục": p.category,
+      "Mã SP": p.sku, "Tên SP": p.name, "Danh mục": p.category,
       "Giá nhập": p.buyPrice, "Giá bán": p.sellPrice, "Tồn kho": p.stock
     })));
     XLSX.utils.book_append_sheet(wb, ws, "TonKho");
@@ -1354,10 +1407,10 @@ function ReportsPage({ prods, imps, exps, dark }) {
       <div className="g4" style={{ marginBottom:17 }}>{[{ l:"Tổng nhập (HT)", v:fmtM(imps.filter(o => o.status === "completed").reduce((s, o) => s + orderTotal(o.items), 0)), c:"#2563EB" }, { l:"Tổng xuất (HT)", v:fmtM(exps.filter(o => o.status === "completed").reduce((s, o) => s + orderTotal(o.items), 0)), c:"#14B8A6" }, { l:"Tổng tồn kho", v:`${prods.reduce((s, p) => s + p.stock, 0)} SP`, c:"#8B5CF6" }, { l:"Giá trị tồn", v:fmtM(prods.reduce((s, p) => s + p.stock * p.buyPrice, 0)), c:"#F59E0B" }].map(({ l, v, c }) => <div key={l} className="card"><p style={{ fontSize:12, color:"var(--t2)", fontWeight:600 }}>{l}</p><p style={{ fontSize:22, fontWeight:800, marginTop:7, color:c }}>{v}</p></div>)}</div>
       <div style={{ display:"grid", gridTemplateColumns:"2fr 1fr", gap:14, marginBottom:14 }}>
         <div className="card"><div className="st"><BarChart2 size={14} style={{ color:"#2563EB" }} />Nhập/Xuất kho (6 tháng)</div>
-          <ResponsiveContainer width="100%" height={220}><BarChart data={CHART_BAR6} margin={{ top:5, right:8, bottom:5, left:-10 }}><CartesianGrid strokeDasharray="3 3" stroke={gc} /><XAxis dataKey="m" tick={{ fill:tc, fontSize:11 }} axisLine={false} tickLine={false} /><YAxis tick={{ fill:tc, fontSize:11 }} axisLine={false} tickLine={false} /><Tooltip content={<TT />} /><Legend wrapperStyle={{ fontSize:12, color:tc }} /><Bar dataKey="n" name="Nhập kho" fill="#2563EB" radius={[3,3,0,0]} /><Bar dataKey="x" name="Xuất kho" fill="#06B6D4" radius={[3,3,0,0]} /></BarChart></ResponsiveContainer></div>
+          <ResponsiveContainer width="100%" height={220}><BarChart data={dynamicBar} margin={{ top:5, right:8, bottom:5, left:-10 }}><CartesianGrid strokeDasharray="3 3" stroke={gc} /><XAxis dataKey="m" tick={{ fill:tc, fontSize:11 }} axisLine={false} tickLine={false} /><YAxis tick={{ fill:tc, fontSize:11 }} axisLine={false} tickLine={false} /><Tooltip content={<TT />} /><Legend wrapperStyle={{ fontSize:12, color:tc }} /><Bar dataKey="n" name="Nhập kho (Tr.đ)" fill="#2563EB" radius={[3,3,0,0]} /><Bar dataKey="x" name="Xuất kho (Tr.đ)" fill="#06B6D4" radius={[3,3,0,0]} /></BarChart></ResponsiveContainer></div>
         <div className="card"><div className="st"><Target size={14} style={{ color:"#8B5CF6" }} />Danh mục</div>
-          <ResponsiveContainer width="100%" height={185}><PieChart><Pie data={CHART_PIE} cx="50%" cy="50%" outerRadius={70} paddingAngle={3} dataKey="v">{CHART_PIE.map((e, i) => <Cell key={i} fill={e.c} />)}</Pie><Tooltip content={<TT />} formatter={v => [`${v}%`, ""]} /></PieChart></ResponsiveContainer>
-          {CHART_PIE.map(it => <div key={it.n} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", fontSize:12, marginBottom:3 }}><div style={{ display:"flex", alignItems:"center", gap:5 }}><span style={{ width:8, height:8, borderRadius:2, background:it.c, display:"inline-block" }} /><span style={{ color:"var(--t2)" }}>{it.n}</span></div><span style={{ fontWeight:700 }}>{it.v}%</span></div>)}</div>
+          <ResponsiveContainer width="100%" height={185}><PieChart><Pie data={dynamicPie} cx="50%" cy="50%" outerRadius={70} paddingAngle={3} dataKey="v">{dynamicPie.map((e, i) => <Cell key={i} fill={e.c} />)}</Pie><Tooltip content={<TT />} formatter={v => [`${v}%`, ""]} /></PieChart></ResponsiveContainer>
+          {dynamicPie.map(it => <div key={it.n} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", fontSize:12, marginBottom:3 }}><div style={{ display:"flex", alignItems:"center", gap:5 }}><span style={{ width:8, height:8, borderRadius:2, background:it.c, display:"inline-block" }} /><span style={{ color:"var(--t2)" }}>{it.n}</span></div><span style={{ fontWeight:700 }}>{it.v}%</span></div>)}</div>
       </div>
       <div className="card"><div className="st"><Award size={14} style={{ color:"#F59E0B" }} />Sản phẩm tồn kho cao nhất</div>
         <table className="dt"><thead><tr><th>#</th><th>Sản phẩm</th><th>Danh mục</th><th>Tồn kho</th><th>Giá trị tồn</th><th>TT</th></tr></thead>
@@ -1410,7 +1463,7 @@ export default function App() {
 
   useEffect(() => {
     const fetchData = async () => {
-      // Fetch current logged in user and set name/email to user's email
+      // 1. Fetch current logged in user & sync to users list
       const { data: { user } } = await supabase.auth.getUser();
       if (user && user.email) {
         setAdminProfile(prev => ({
@@ -1418,9 +1471,43 @@ export default function App() {
           name: user.email,
           email: user.email
         }));
+
+        const nowStr = new Date().toLocaleString("vi-VN", {
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit"
+        }).replace(",", "");
+
+        setUsers(prev => {
+          const emailExists = prev.some(u => u.email.toLowerCase() === user.email.toLowerCase());
+          if (emailExists) {
+            return prev.map(u => u.email.toLowerCase() === user.email.toLowerCase() ? { ...u, lastLogin: nowStr, status: "active" } : u);
+          } else {
+            const initials = user.email.slice(0, 2).toUpperCase();
+            const username = user.email.split("@")[0];
+            return [
+              {
+                id: `U${String(prev.length + 1).padStart(3, "0")}`,
+                name: user.email,
+                username: username,
+                email: user.email,
+                phone: "",
+                role: "Admin",
+                dept: "IT",
+                position: "Quản trị viên",
+                status: "active",
+                lastLogin: nowStr,
+                avatar: initials
+              },
+              ...prev
+            ];
+          }
+        });
       }
 
-      // Fetch warehouses
+      // 2. Fetch warehouses
       const { data: whData } = await supabase.from('warehouses').select('*');
       if (whData) setWhs(whData.map(w => ({
         id: w.id, name: w.ten_kho, location: w.dia_chi, capacity: w.suc_chua,
@@ -1428,7 +1515,7 @@ export default function App() {
         manager: w.quan_ly, phone: w.so_dien_thoai, status: w.trang_thai
       })));
 
-      // Fetch partners (suppliers)
+      // 3. Fetch partners (suppliers)
       const { data: partData } = await supabase.from('partners').select('*');
       if (partData) setSupps(partData.map(p => ({
         id: p.id, name: p.ten_doi_tac, code: p.ma_doi_tac,
@@ -1437,14 +1524,164 @@ export default function App() {
         status: p.ngung_giao_dich ? 'inactive' : 'active', debt: p.cong_no, orders: 0
       })));
 
-      // Fetch goods
+      // 4. Fetch/Seed orders & order_items
+      let { data: ords } = await supabase.from('orders').select(`
+        *,
+        partners (ten_doi_tac, ma_doi_tac),
+        warehouses (ten_kho),
+        order_items (
+          *,
+          goods (id, ten_hang)
+        )
+      `);
+
+      if (!ords || ords.length === 0) {
+        const { data: dbWhs } = await supabase.from('warehouses').select('id, ma_kho');
+        const { data: dbParts } = await supabase.from('partners').select('id, ma_doi_tac');
+        const { data: dbGoods } = await supabase.from('goods').select('id, ma_hang');
+
+        if (dbWhs && dbParts && dbGoods) {
+          const whMap = Object.fromEntries(dbWhs.map(w => [w.ma_kho, w.id]));
+          const partMap = Object.fromEntries(dbParts.map(p => [p.ma_doi_tac, p.id]));
+          const goodMap = Object.fromEntries(dbGoods.map(g => [g.ma_hang, g.id]));
+
+          // Insert seed imports
+          for (const imp of SEED_IMP) {
+            const dbPartnerId = partMap[imp.sid] || dbParts[0]?.id;
+            const dbWarehouseId = whMap[imp.wid === "Kho A" || imp.wid === "WH001" ? "WH001" : imp.wid === "WH002" ? "WH002" : "WH003"] || dbWhs[0]?.id;
+            const { data: newOrd } = await supabase.from('orders').insert({
+              ma_phieu: imp.id,
+              loai_don: 'import',
+              partner_id: dbPartnerId,
+              warehouse_id: dbWarehouseId,
+              nguoi_xu_ly: imp.receiver,
+              trang_thai: imp.status,
+              ngay_giao_dich: imp.date,
+              ghi_chu: imp.note
+            }).select().single();
+
+            if (newOrd) {
+              const itemsToInsert = imp.items.map(it => {
+                const dbGoodId = goodMap[it.pid === "SP001" ? "DELL-XPS13" : it.pid === "SP002" ? "APPLE-IP15" : it.pid === "SP003" ? "DESK-01" : it.pid === "SP004" ? "SONY-WH5" : it.pid === "SP005" ? "LG-UW34" : "DELL-XPS13"] || dbGoods[0]?.id;
+                return {
+                  order_id: newOrd.id,
+                  good_id: dbGoodId,
+                  so_luong: it.qty,
+                  don_gia: it.price
+                };
+              });
+              await supabase.from('order_items').insert(itemsToInsert);
+            }
+          }
+
+          // Insert seed exports
+          for (const exp of SEED_EXP) {
+            const dbWarehouseId = whMap[exp.wid === "Kho A" || exp.wid === "WH001" ? "WH001" : exp.wid === "WH002" ? "WH002" : "WH003"] || dbWhs[0]?.id;
+            const { data: newOrd } = await supabase.from('orders').insert({
+              ma_phieu: exp.id,
+              loai_don: 'export',
+              partner_id: null,
+              warehouse_id: dbWarehouseId,
+              nguoi_xu_ly: exp.handler,
+              trang_thai: exp.status,
+              ngay_giao_dich: exp.date,
+              ghi_chu: exp.note
+            }).select().single();
+
+            if (newOrd) {
+              const itemsToInsert = exp.items.map(it => {
+                const dbGoodId = goodMap[it.pid === "SP001" ? "DELL-XPS13" : it.pid === "SP002" ? "APPLE-IP15" : it.pid === "SP003" ? "DESK-01" : it.pid === "SP004" ? "SONY-WH5" : it.pid === "SP005" ? "LG-UW34" : "DELL-XPS13"] || dbGoods[0]?.id;
+                return {
+                  order_id: newOrd.id,
+                  good_id: dbGoodId,
+                  so_luong: it.qty,
+                  don_gia: it.price
+                };
+              });
+              await supabase.from('order_items').insert(itemsToInsert);
+            }
+          }
+
+          // Refetch
+          const { data: refetched } = await supabase.from('orders').select(`
+            *,
+            partners (ten_doi_tac, ma_doi_tac),
+            warehouses (ten_kho),
+            order_items (
+              *,
+              goods (id, ten_hang)
+            )
+          `);
+          ords = refetched;
+        }
+      }
+
+      if (ords) {
+        const parsedImps = ords.filter(o => o.loai_don === 'import').map(o => ({
+          id: o.ma_phieu,
+          sid: o.partner_id,
+          sname: o.partners?.ten_doi_tac || "Nhà cung cấp",
+          wid: o.warehouse_id,
+          wname: o.warehouses?.ten_kho || "Kho A",
+          receiver: o.nguoi_xu_ly,
+          status: o.trang_thai,
+          date: o.ngay_giao_dich,
+          note: o.ghi_chu,
+          items: o.order_items.map(item => ({
+            pid: item.good_id,
+            pname: item.goods?.ten_hang || "Sản phẩm",
+            qty: item.so_luong,
+            price: Number(item.don_gia)
+          }))
+        }));
+        setImps(parsedImps);
+
+        const parsedExps = ords.filter(o => o.loai_don === 'export').map(o => ({
+          id: o.ma_phieu,
+          customer: o.nguoi_xu_ly,
+          wid: o.warehouse_id,
+          wname: o.warehouses?.ten_kho || "Kho A",
+          handler: o.nguoi_xu_ly,
+          status: o.trang_thai,
+          date: o.ngay_giao_dich,
+          note: o.ghi_chu,
+          items: o.order_items.map(item => ({
+            pid: item.good_id,
+            pname: item.goods?.ten_hang || "Sản phẩm",
+            qty: item.so_luong,
+            price: Number(item.don_gia)
+          }))
+        }));
+        setExps(parsedExps);
+      }
+
+      // 5. Fetch goods and calculate real stock levels dynamically
       const { data: prodData } = await supabase.from('goods').select('*');
-      if (prodData) setProds(prodData.map(p => ({
-        id: p.id, name: p.ten_hang, sku: p.ma_hang, category: p.nhom_hang,
-        buyPrice: Number(p.gia_nhap), sellPrice: Number(p.gia_ban),
-        stock: 0, wid: p.warehouse_id, loc: p.vi_tri_kho,
-        status: p.ngung_kinh_doanh ? 'inactive' : 'active', img: p.hinh_anh, desc: p.mo_ta
-      })));
+      if (prodData) setProds(prodData.map(p => {
+        let currentStock = 0;
+        if (ords) {
+          ords.forEach(o => {
+            if (o.trang_thai === 'completed') {
+              o.order_items.forEach(item => {
+                if (item.good_id === p.id) {
+                  if (o.loai_don === 'import') {
+                    currentStock += item.so_luong;
+                  } else if (o.loai_don === 'export') {
+                    currentStock -= item.so_luong;
+                  }
+                }
+              });
+            }
+          });
+        }
+
+        return {
+          id: p.id, name: p.ten_hang, sku: p.ma_hang, category: p.nhom_hang,
+          buyPrice: Number(p.gia_nhap), sellPrice: Number(p.gia_ban),
+          stock: currentStock, wid: p.warehouse_id, loc: p.vi_tri_kho,
+          status: sSt(currentStock), img: p.hinh_anh, desc: p.mo_ta
+        };
+      }));
     };
     fetchData();
   }, []);

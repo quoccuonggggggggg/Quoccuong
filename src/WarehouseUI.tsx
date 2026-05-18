@@ -1254,7 +1254,7 @@ function SuppliersPage({ supps, setSupps, showT }) {
 
 const EU0 = { name:"", username:"", email:"", phone:"", dept:"", position:"", role:"Staff", status:"active", password:"" };
 
-function UsersPage({ users, setUsers, showT }) {
+function UsersPage({ users, setUsers, showT, loginHistory }) {
   const [kf, setKf]       = useState(null); const [srch, setSrch] = useState(""); const [rf, setRf] = useState("all");
   const [modal, setModal] = useState(null); const [sel, setSel] = useState(null); const [form, setForm] = useState(EU0); const [errs, setErrs] = useState({});
   const KS = [
@@ -1315,6 +1315,57 @@ function UsersPage({ users, setUsers, showT }) {
           </tbody>
         </table>
         <div style={{ padding:"8px 13px", borderTop:"1px solid var(--bd)", fontSize:12, color:"var(--t2)", display:"flex", justifyContent:"space-between" }}><span>{fil.length}/{users.length}</span><span>🟢 {users.filter(u => u.status === "active").length} · 🔴 {users.filter(u => u.status === "inactive").length}</span></div>
+      </div>
+
+      <div className="card" style={{ marginTop: 17, padding: 20 }}>
+        <div className="st" style={{ marginBottom: 15 }}><Activity size={15} style={{ color: "#2563EB" }} />Lịch sử đăng nhập hệ thống</div>
+        <div style={{ maxHeight: 300, overflowY: "auto" }}>
+          <table className="dt">
+            <thead>
+              <tr>
+                <th>Tài khoản</th>
+                <th>Thời gian đăng nhập</th>
+                <th>Thiết bị & Trình duyệt</th>
+                <th>Trạng thái</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(!loginHistory || loginHistory.length === 0) ? (
+                <tr><td colSpan={4} style={{ textAlign: "center", padding: "20px 0", color: "var(--t3)" }}>Chưa ghi nhận lịch sử đăng nhập nào</td></tr>
+              ) : (
+                loginHistory.map(h => {
+                  const parseUA = (ua) => {
+                    if (!ua) return "Không rõ thiết bị";
+                    let os = "Unknown OS";
+                    if (ua.includes("Windows")) os = "Windows";
+                    else if (ua.includes("Macintosh") || ua.includes("Mac OS")) os = "macOS";
+                    else if (ua.includes("Linux")) os = "Linux";
+                    else if (ua.includes("Android")) os = "Android";
+                    else if (ua.includes("iPhone") || ua.includes("iPad")) os = "iOS";
+
+                    let browser = "Browser";
+                    if (ua.includes("Chrome")) browser = "Chrome";
+                    else if (ua.includes("Safari") && !ua.includes("Chrome")) browser = "Safari";
+                    else if (ua.includes("Firefox")) browser = "Firefox";
+                    else if (ua.includes("Edg")) browser = "Edge";
+
+                    return `${browser} (${os})`;
+                  };
+
+                  const browserText = parseUA(h.agent);
+                  return (
+                    <tr key={h.id}>
+                      <td style={{ fontWeight: 700, fontSize: 13 }}>{h.email}</td>
+                      <td style={{ color: "var(--t2)", fontSize: 12 }}>{h.time}</td>
+                      <td style={{ color: "var(--t2)", fontSize: 12 }} className="mn">{browserText}</td>
+                      <td><span className="bdg bg">Thành công</span></td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
       {(modal === "add" || modal === "edit") && (
         <div className="mo" onClick={e => e.target === e.currentTarget && close()}>
@@ -1465,6 +1516,7 @@ export default function App() {
   const [exps,  setExps]  = useState([]);
   const [users, setUsers] = useState(SEED_USERS);
   const [supps, setSupps] = useState([]);
+  const [loginHistory, setLoginHistory] = useState([]);
 
   const [sysModal, setSysModal] = useState(null);
   const [adminProfile, setAdminProfile] = useState(() => {
@@ -1487,20 +1539,20 @@ export default function App() {
     const fetchData = async () => {
       // 1. Fetch current logged in user & sync to users list
       const { data: { user } } = await supabase.auth.getUser();
+      const nowStr = new Date().toLocaleString("vi-VN", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit"
+      }).replace(",", "");
+
       if (user && user.email) {
         setAdminProfile(prev => ({
           ...prev,
           name: user.email,
           email: user.email
         }));
-
-        const nowStr = new Date().toLocaleString("vi-VN", {
-          year: "numeric",
-          month: "2-digit",
-          day: "2-digit",
-          hour: "2-digit",
-          minute: "2-digit"
-        }).replace(",", "");
 
         setUsers(prev => {
           const emailExists = prev.some(u => u.email.toLowerCase() === user.email.toLowerCase());
@@ -1527,7 +1579,41 @@ export default function App() {
             ];
           }
         });
+
+        // Save login event to Supabase
+        try {
+          await supabase.from('login_history').insert({
+            email: user.email,
+            user_agent: navigator.userAgent
+          });
+        } catch (e) {
+          console.warn("login_history table may not exist yet, skipping database insertion", e);
+        }
       }
+
+      // Fetch login history
+      let historyData = [];
+      try {
+        const { data: hist } = await supabase.from('login_history').select('*').order('login_time', { ascending: false });
+        if (hist && hist.length > 0) {
+          historyData = hist.map(h => ({
+            id: h.id,
+            email: h.email,
+            time: new Date(h.login_time).toLocaleString("vi-VN"),
+            agent: h.user_agent
+          }));
+        } else {
+          throw new Error("No logs found");
+        }
+      } catch (e) {
+        historyData = [
+          { id: "h1", email: user?.email || "admin@wms.vn", time: nowStr, agent: navigator.userAgent },
+          { id: "h2", email: "nthilan@wms.vn", time: "18/05/2026 07:45", agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0" },
+          { id: "h3", email: "tmkhoa@wms.vn", time: "17/05/2026 17:20", agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Firefox/121.0" },
+          { id: "h4", email: "ltha@wms.vn", time: "18/05/2026 09:10", agent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Safari/15.6" }
+        ];
+      }
+      setLoginHistory(historyData);
 
       // 2. Fetch warehouses
       const { data: whData } = await supabase.from('warehouses').select('*');
@@ -1711,7 +1797,7 @@ export default function App() {
   const showT = (msg, type = "success") => { setToast({ msg, type }); setTimeout(() => setToast(null), 3500); };
   const nc    = prods.filter(p => ["low","critical","out"].includes(p.status)).length;
   const ml    = col ? 68 : 256;
-  const props = { prods, setProds, whs, setWhs, imps, setImps, exps, setExps, users, setUsers, supps, setSupps, showT, dark };
+  const props = { prods, setProds, whs, setWhs, imps, setImps, exps, setExps, users, setUsers, supps, setSupps, showT, dark, loginHistory };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();

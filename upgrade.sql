@@ -124,3 +124,15 @@ INSERT INTO public.goods (id, ten_hang, ma_hang, nhom_hang, gia_nhap, gia_ban, w
 ('c4444444-4444-4444-4444-444444444444', 'Tai nghe Sony WH-1000XM5', 'SONY-WH5', 'Âm thanh', 7200000, 8900000, 'e1e1e1e1-e1e1-e1e1-e1e1-e1e1e1e1e1e1', 'A-03-05', false, '🎧', 'Tai nghe chụp tai chống ồn chủ động đỉnh cao Sony'),
 ('c5555555-5555-5555-5555-555555555555', 'Màn hình LG UltraWide 34"', 'LG-UW34', 'Điện tử', 12000000, 15500000, 'e1e1e1e1-e1e1-e1e1-e1e1-e1e1e1e1e1e1', 'A-04-01', false, '🖥️', 'Màn hình cong siêu rộng LG 34 inch tỷ lệ 21:9')
 ON CONFLICT (ma_hang) DO NOTHING;
+
+-- 8. Bảng Lịch sử đăng nhập (Login History)
+CREATE TABLE IF NOT EXISTS public.login_history (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    email VARCHAR(255) NOT NULL,
+    user_agent TEXT,
+    login_time TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+ALTER TABLE public.login_history ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Cho phép xem lịch sử đăng nhập" ON public.login_history FOR SELECT USING (true);
+CREATE POLICY "Cho phép thêm lịch sử đăng nhập" ON public.login_history FOR INSERT WITH CHECK (true);

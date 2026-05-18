@@ -16,9 +16,15 @@ import {
   Printer, ChevronFirst, ChevronLast, Target, Award, Zap,
 } from "lucide-react";
 
-/* ═══════════════════════════════════════════════════════════
-   SEED DATA
-═══════════════════════════════════════════════════════════ */
+const getDaysAgo = (num) => {
+  const d = new Date();
+  d.setDate(d.getDate() - num);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+};
+
 const SEED_WH = [
   { id:"WH001", name:"Kho A - Điện tử",   location:"Quận 1, TP.HCM", capacity:500, zones:5, temperature:"18-22°C", type:"Kho lạnh",   manager:"Nguyễn Văn An",  phone:"0901234567", status:"active" },
   { id:"WH002", name:"Kho B - Nội thất",  location:"Quận 7, TP.HCM", capacity:300, zones:8, temperature:"Thường",  type:"Kho thường", manager:"Trần Thị Bình",  phone:"0912345678", status:"active" },
@@ -47,40 +53,40 @@ const SEED_SUPP = [
   { id:"NCC006", name:"Canon Vietnam",       code:"CANON-VN", email:"supply@canon.vn",     phone:"0286789012", address:"Hà Nội",         contact:"Vũ Thanh Lan",    rating:4, status:"active",   debt:0,        orders:41 },
 ];
 const SEED_IMP = [
-  { id:"PN001", sid:"NCC002", sname:"Dell Technologies VN", wid:"WH001", wname:"Kho A", receiver:"Nguyễn Thị Lan", status:"completed", date:"2024-12-15", note:"",
+  { id:"PN001", sid:"NCC002", sname:"Dell Technologies VN", wid:"WH001", wname:"Kho A", receiver:"Nguyễn Thị Lan", status:"completed", date:getDaysAgo(0), note:"",
     items:[{ pid:"SP001", pname:"Laptop Dell XPS 13", qty:10, price:25000000 },{ pid:"SP004", pname:"Tai nghe Sony WH-1000XM5", qty:5, price:7200000 }] },
-  { id:"PN002", sid:"NCC001", sname:"Apple Việt Nam",       wid:"WH001", wname:"Kho A", receiver:"Trần Minh Khoa",  status:"processing",date:"2024-12-14", note:"Đang kiểm tra",
+  { id:"PN002", sid:"NCC001", sname:"Apple Việt Nam",       wid:"WH001", wname:"Kho A", receiver:"Trần Minh Khoa",  status:"processing",date:getDaysAgo(1), note:"Đang kiểm tra",
     items:[{ pid:"SP002", pname:"iPhone 15 Pro Max", qty:3, price:28000000 }] },
-  { id:"PN003", sid:"NCC003", sname:"Sony Electronics",     wid:"WH001", wname:"Kho A", receiver:"Lê Thu Hà",      status:"pending",   date:"2024-12-13", note:"Chờ xác nhận",
+  { id:"PN003", sid:"NCC003", sname:"Sony Electronics",     wid:"WH001", wname:"Kho A", receiver:"Lê Thu Hà",      status:"pending",   date:getDaysAgo(2), note:"Chờ xác nhận",
     items:[{ pid:"SP005", pname:'Màn hình LG UltraWide 34"', qty:5, price:12000000 },{ pid:"SP004", pname:"Tai nghe Sony WH-1000XM5", qty:3, price:7200000 }] },
-  { id:"PN004", sid:"NCC004", sname:"LG Display VN",        wid:"WH001", wname:"Kho A", receiver:"Nguyễn Thị Lan", status:"completed", date:"2024-12-12", note:"",
+  { id:"PN004", sid:"NCC004", sname:"LG Display VN",        wid:"WH001", wname:"Kho A", receiver:"Nguyễn Thị Lan", status:"completed", date:getDaysAgo(3), note:"",
     items:[{ pid:"SP001", pname:"Laptop Dell XPS 13", qty:5, price:25000000 }] },
-  { id:"PN005", sid:"NCC006", sname:"Canon Vietnam",        wid:"WH003", wname:"Kho C", receiver:"Trần Minh Khoa", status:"cancelled", date:"2024-12-11", note:"Hủy do hàng lỗi",
+  { id:"PN005", sid:"NCC006", sname:"Canon Vietnam",        wid:"WH003", wname:"Kho C", receiver:"Trần Minh Khoa", status:"cancelled", date:getDaysAgo(4), note:"Hủy do hàng lỗi",
     items:[{ pid:"SP007", pname:"Máy in Canon PIXMA G3020", qty:6, price:2800000 }] },
-  { id:"PN006", sid:"NCC005", sname:"Cisco Systems VN",     wid:"WH003", wname:"Kho C", receiver:"Hoàng Anh Tuấn", status:"completed", date:"2024-12-10", note:"",
+  { id:"PN006", sid:"NCC005", sname:"Cisco Systems VN",     wid:"WH003", wname:"Kho C", receiver:"Hoàng Anh Tuấn", status:"completed", date:getDaysAgo(5), note:"",
     items:[{ pid:"SP010", pname:"Switch Cisco 24 Port", qty:2, price:8500000 }] },
-  { id:"PN007", sid:"NCC002", sname:"Dell Technologies VN", wid:"WH002", wname:"Kho B", receiver:"Phạm Văn Bình",  status:"processing",date:"2024-12-09", note:"Đang vận chuyển",
+  { id:"PN007", sid:"NCC002", sname:"Dell Technologies VN", wid:"WH002", wname:"Kho B", receiver:"Phạm Văn Bình",  status:"processing",date:getDaysAgo(6), note:"Đang vận chuyển",
     items:[{ pid:"SP011", pname:"Camera IP Dahua 4K", qty:7, price:2100000 }] },
 ];
 const SEED_EXP = [
-  { id:"PX001", customer:"Công ty TNHH ABC",        wid:"WH001", wname:"Kho A", handler:"Trần Minh Khoa", status:"completed", date:"2024-12-15", note:"",
+  { id:"PX001", customer:"Công ty TNHH ABC",        wid:"WH001", wname:"Kho A", handler:"Trần Minh Khoa", status:"completed", date:getDaysAgo(0), note:"",
     items:[{ pid:"SP001", pname:"Laptop Dell XPS 13", qty:3, price:29500000 },{ pid:"SP002", pname:"iPhone 15 Pro Max", qty:2, price:33000000 }] },
-  { id:"PX002", customer:"Trường ĐH Bách Khoa",     wid:"WH001", wname:"Kho A", handler:"Nguyễn Thị Lan", status:"processing",date:"2024-12-14", note:"Giao sáng mai",
+  { id:"PX002", customer:"Trường ĐH Bách Khoa",     wid:"WH001", wname:"Kho A", handler:"Nguyễn Thị Lan", status:"processing",date:getDaysAgo(1), note:"Giao sáng mai",
     items:[{ pid:"SP004", pname:"Tai nghe Sony WH-1000XM5", qty:10, price:8900000 }] },
-  { id:"PX003", customer:"Ngân hàng Vietcombank",   wid:"WH003", wname:"Kho C", handler:"Hoàng Anh Tuấn", status:"pending",   date:"2024-12-13", note:"Chờ duyệt",
+  { id:"PX003", customer:"Ngân hàng Vietcombank",   wid:"WH003", wname:"Kho C", handler:"Hoàng Anh Tuấn", status:"pending",   date:getDaysAgo(2), note:"Chờ duyệt",
     items:[{ pid:"SP010", pname:"Switch Cisco 24 Port", qty:5, price:11000000 }] },
-  { id:"PX004", customer:"Công ty CP XYZ",          wid:"WH002", wname:"Kho B", handler:"Trần Minh Khoa", status:"completed", date:"2024-12-12", note:"",
+  { id:"PX004", customer:"Công ty CP XYZ",          wid:"WH002", wname:"Kho B", handler:"Trần Minh Khoa", status:"completed", date:getDaysAgo(3), note:"",
     items:[{ pid:"SP011", pname:"Camera IP Dahua 4K", qty:4, price:2900000 }] },
-  { id:"PX005", customer:"Bệnh viện Chợ Rẫy",      wid:"WH003", wname:"Kho C", handler:"Lê Thu Hà",      status:"completed", date:"2024-12-11", note:"",
+  { id:"PX005", customer:"Bệnh viện Chợ Rẫy",      wid:"WH003", wname:"Kho C", handler:"Lê Thu Hà",      status:"completed", date:getDaysAgo(4), note:"",
     items:[{ pid:"SP007", pname:"Máy in Canon PIXMA G3020", qty:8, price:3700000 }] },
 ];
 const SEED_USERS = [
-  { id:"U001", name:"Admin Hệ Thống",  username:"admin",   email:"admin@wms.vn",   phone:"0901111111", role:"Admin",          dept:"IT",      position:"System Administrator", status:"active",   lastLogin:"2024-12-15 08:30", avatar:"AH" },
-  { id:"U002", name:"Nguyễn Thị Lan",  username:"nthilan", email:"nthilan@wms.vn", phone:"0902222222", role:"Manager",        dept:"Kho",     position:"Trưởng phòng kho",    status:"active",   lastLogin:"2024-12-15 07:45", avatar:"NL" },
-  { id:"U003", name:"Trần Minh Khoa",  username:"tmkhoa",  email:"tmkhoa@wms.vn",  phone:"0903333333", role:"Staff",          dept:"Kho A",   position:"Nhân viên kho",       status:"active",   lastLogin:"2024-12-14 17:20", avatar:"TK" },
-  { id:"U004", name:"Lê Thu Hà",       username:"ltha",    email:"ltha@wms.vn",    phone:"0904444444", role:"Accountant",     dept:"Kế toán", position:"Kế toán viên",        status:"active",   lastLogin:"2024-12-15 09:10", avatar:"LH" },
-  { id:"U005", name:"Phạm Văn Bình",   username:"pvbinh",  email:"pvbinh@wms.vn",  phone:"0905555555", role:"WarehouseStaff", dept:"Kho B",   position:"Thủ kho",             status:"inactive", lastLogin:"2024-12-10 15:30", avatar:"PB" },
-  { id:"U006", name:"Hoàng Anh Tuấn",  username:"hatuan",  email:"hatuan@wms.vn",  phone:"0906666666", role:"Staff",          dept:"Kho C",   position:"Nhân viên xuất kho",  status:"active",   lastLogin:"2024-12-15 06:55", avatar:"HT" },
+  { id:"U001", name:"Admin Hệ Thống",  username:"admin",   email:"admin@wms.vn",   phone:"0901111111", role:"Admin",          dept:"IT",      position:"System Administrator", status:"active",   lastLogin:getDaysAgo(0) + " 08:30", avatar:"AH" },
+  { id:"U002", name:"Nguyễn Thị Lan",  username:"nthilan", email:"nthilan@wms.vn", phone:"0902222222", role:"Manager",        dept:"Kho",     position:"Trưởng phòng kho",    status:"active",   lastLogin:getDaysAgo(0) + " 07:45", avatar:"NL" },
+  { id:"U003", name:"Trần Minh Khoa",  username:"tmkhoa",  email:"tmkhoa@wms.vn",  phone:"0903333333", role:"Staff",          dept:"Kho A",   position:"Nhân viên kho",       status:"active",   lastLogin:getDaysAgo(1) + " 17:20", avatar:"TK" },
+  { id:"U004", name:"Lê Thu Hà",       username:"ltha",    email:"ltha@wms.vn",    phone:"0904444444", role:"Accountant",     dept:"Kế toán", position:"Kế toán viên",        status:"active",   lastLogin:getDaysAgo(0) + " 09:10", avatar:"LH" },
+  { id:"U005", name:"Phạm Văn Bình",   username:"pvbinh",  email:"pvbinh@wms.vn",  phone:"0905555555", role:"WarehouseStaff", dept:"Kho B",   position:"Thủ kho",             status:"inactive", lastLogin:getDaysAgo(5) + " 15:30", avatar:"PB" },
+  { id:"U006", name:"Hoàng Anh Tuấn",  username:"hatuan",  email:"hatuan@wms.vn",  phone:"0906666666", role:"Staff",          dept:"Kho C",   position:"Nhân viên xuất kho",  status:"active",   lastLogin:getDaysAgo(0) + " 06:55", avatar:"HT" },
 ];
 const CATS = ["Điện tử","Nội thất","Âm thanh","Mạng","Văn phòng","Phụ kiện","Điện","An ninh"];
 const EMOJIS = ["💻","📱","🖥️","🎧","🖨️","⌨️","📷","🔌","🔋","📡","🪑","💺","📦","🖱️","📺","🎮"];
@@ -1743,6 +1749,50 @@ export default function App() {
             )
           `);
           ords = refetched;
+        }
+      }
+
+      // Automatically adjust transactional dates in Supabase database to be within the last 7 days relative to today
+      if (ords && ords.length > 0) {
+        const hasOldDates = ords.some(o => o.ma_phieu.startsWith("P") && o.ngay_giao_dich.startsWith("2024"));
+        if (hasOldDates) {
+          const mapCodeToOffset = {
+            "PN001": 0, "PX001": 0,
+            "PN002": 1, "PX002": 1,
+            "PN003": 2, "PX003": 2,
+            "PN004": 3, "PX004": 3,
+            "PN005": 4, "PX005": 4,
+            "PN006": 5,
+            "PN007": 6
+          };
+
+          for (const o of ords) {
+            const offset = mapCodeToOffset[o.ma_phieu];
+            if (offset !== undefined) {
+              const d = new Date();
+              d.setDate(d.getDate() - offset);
+              const yyyy = d.getFullYear();
+              const mm = String(d.getMonth() + 1).padStart(2, '0');
+              const dd = String(d.getDate()).padStart(2, '0');
+              const newDateStr = `${yyyy}-${mm}-${dd}`;
+
+              await supabase.from('orders').update({ ngay_giao_dich: newDateStr }).eq('id', o.id);
+            }
+          }
+
+          // Refetch orders so the charts instantly render updated data
+          const { data: refreshed } = await supabase.from('orders').select(`
+            *,
+            partners (ten_doi_tac, ma_doi_tac),
+            warehouses (ten_kho),
+            order_items (
+              *,
+              goods (id, ten_hang)
+            )
+          `);
+          if (refreshed) {
+            ords = refreshed;
+          }
         }
       }
 

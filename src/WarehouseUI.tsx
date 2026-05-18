@@ -292,8 +292,9 @@ function Sidebar({ cur, onNav, col, onCol, onLogout, adminProfile }) {
   );
 }
 
-function Topbar({ dark, onDark, pg, nc, onLogout, onAction, adminProfile }) {
+function Topbar({ dark, onDark, pg, nc, onLogout, onAction, adminProfile, prods }) {
   const [su, setSu] = useState(false);
+  const [showNotif, setShowNotif] = useState(false);
   const LBL = { dashboard: "Dashboard", products: "Sản phẩm", warehouses: "Kho hàng", imports: "Nhập kho", exports: "Xuất kho", suppliers: "Nhà cung cấp", users: "Người dùng", reports: "Báo cáo", activity: "Nhật ký HĐ", settings: "Cài đặt" };
   
   const initials = adminProfile.name
@@ -311,11 +312,41 @@ function Topbar({ dark, onDark, pg, nc, onLogout, onAction, adminProfile }) {
         <ChevronRight size={11} color="var(--t3)" />
         <span style={{ fontSize: 13, fontWeight: 600 }}>{LBL[pg] || pg}</span>
       </div>
-      <div className="ts"><Search size={13} color="var(--t3)" /><input placeholder="Tìm kiếm toàn hệ thống..." /></div>
       <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
         <span style={{ fontSize: 12, color: "var(--t2)" }}>{new Date().toLocaleDateString("vi-VN", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" })}</span>
         <button className="ib" onClick={onDark}>{dark ? <Sun size={15} /> : <Moon size={15} />}</button>
-        <button className="ib"><Bell size={15} />{nc > 0 && <span className="ndot" />}</button>
+        <div style={{ position: "relative" }}>
+          <button className="ib" onClick={() => setShowNotif(v => !v)}><Bell size={15} />{nc > 0 && <span className="ndot" />}</button>
+          {showNotif && (
+            <div className="dd" style={{ right: 0, width: 320, maxHeight: 400, overflowY: "auto" }}>
+              <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--bd)" }}>
+                <p style={{ fontWeight: 600, fontSize: 13 }}>Thông báo tồn kho</p>
+                <p style={{ fontSize: 11, color: "var(--t3)", marginTop: 2 }}>{nc} sản phẩm cần chú ý</p>
+              </div>
+              <div style={{ padding: 5 }}>
+                {!prods || prods.filter(p => ["low","critical","out"].includes(p.status)).length === 0 ? (
+                  <div style={{ padding: "20px", textAlign: "center", fontSize: 12, color: "var(--t3)" }}>
+                    🟢 Không có cảnh báo tồn kho nào!
+                  </div>
+                ) : (
+                  prods.filter(p => ["low","critical","out"].includes(p.status)).map(p => {
+                    const statusText = p.stock === 0 ? "Đã hết hàng!" : p.stock <= 5 ? `Tồn kho nguy hiểm! (${p.stock} đv)` : `Tồn kho thấp! (${p.stock} đv)`;
+                    const color = p.stock === 0 ? "#EF4444" : p.stock <= 5 ? "#EF4444" : "#F59E0B";
+                    return (
+                      <div key={p.id} className="ddi" style={{ display: "flex", gap: 10, alignItems: "flex-start", padding: "10px 12px" }}>
+                        <span style={{ fontSize: 16 }}>{p.img}</span>
+                        <div style={{ flex: 1 }}>
+                          <p style={{ fontWeight: 600, fontSize: 12 }}>{p.name}</p>
+                          <p style={{ fontSize: 11, color, fontWeight: 600, marginTop: 2 }}>{statusText}</p>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          )}
+        </div>
         <div style={{ position: "relative" }}>
           <div className="av" style={{ cursor: "pointer", width: 32, height: 32, fontSize: 11 }} onClick={() => setSu(v => !v)}>{initials}</div>
           {su && <div className="dd">
@@ -341,6 +372,41 @@ function Dashboard({ prods, whs, imps, exps, dark }) {
   const tVal   = prods.reduce((s, p) => s + p.stock * p.buyPrice, 0);
   const pend   = [...imps, ...exps].filter(o => ["pending","processing"].includes(o.status)).length;
   const lowN   = prods.filter(p => ["low","critical","out"].includes(p.status)).length;
+
+  const chartData = useMemo(() => {
+    const data = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const label = `${d.getDate()}/${d.getMonth() + 1}`;
+      const dateStr = d.toISOString().slice(0, 10);
+      
+      const n = imps
+        .filter(o => o.date === dateStr && o.status === "completed")
+        .reduce((sum, o) => sum + o.items.reduce((s, it) => s + Number(it.qty || 0), 0), 0);
+        
+      const x = exps
+        .filter(o => o.date === dateStr && o.status === "completed")
+        .reduce((sum, o) => sum + o.items.reduce((s, it) => s + Number(it.qty || 0), 0), 0);
+        
+      data.push({ d: label, n, x });
+    }
+    
+    const totalVolume = data.reduce((s, i) => s + i.n + i.x, 0);
+    if (totalVolume === 0) {
+      const allDates = [...new Set([...imps, ...exps].map(o => o.date))].sort().slice(-7);
+      if (allDates.length > 0) {
+        return allDates.map(dateStr => {
+          const parts = dateStr.split("-");
+          const label = parts.length === 3 ? `${parts[2]}/${parts[1]}` : dateStr;
+          const n = imps.filter(o => o.date === dateStr && o.status === "completed").reduce((sum, o) => sum + o.items.reduce((s, it) => s + Number(it.qty || 0), 0), 0);
+          const x = exps.filter(o => o.date === dateStr && o.status === "completed").reduce((sum, o) => sum + o.items.reduce((s, it) => s + Number(it.qty || 0), 0), 0);
+          return { d: label, n, x };
+        });
+      }
+    }
+    return data;
+  }, [imps, exps]);
 
   const exportDashboardReport = () => {
     const wb = XLSX.utils.book_new();
@@ -392,7 +458,7 @@ function Dashboard({ prods, whs, imps, exps, dark }) {
         <div className="card">
           <div className="st"><BarChart2 size={15} style={{ color:"#2563EB" }} />Lưu lượng nhập/xuất (7 ngày)</div>
           <ResponsiveContainer width="100%" height={205}>
-            <AreaChart data={CHART_AREA} margin={{ top:5, right:8, bottom:0, left:-10 }}>
+            <AreaChart data={chartData} margin={{ top:5, right:8, bottom:0, left:-10 }}>
               <defs>
                 <linearGradient id="gN" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#2563EB" stopOpacity={.28}/><stop offset="95%" stopColor="#2563EB" stopOpacity={0}/></linearGradient>
                 <linearGradient id="gX" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#06B6D4" stopOpacity={.28}/><stop offset="95%" stopColor="#06B6D4" stopOpacity={0}/></linearGradient>
@@ -528,9 +594,9 @@ function ProductsPage({ prods, setProds, whs, showT }) {
             {shown.length === 0 && <tr><td colSpan={10} style={{ textAlign:"center", padding:"35px 0", color:"var(--t3)" }}>Không tìm thấy sản phẩm</td></tr>}
             {shown.map(p => { const wh = whs.find(w => w.id === p.wid); return (
               <tr key={p.id}>
-                <td><span className="mn" style={{ fontSize:12, color:"var(--t2)" }}>{p.id}</span></td>
+                <td><span className="mn" style={{ fontSize:12, color:"var(--t1)", fontWeight:700 }}>{p.sku}</span></td>
                 <td><span style={{ fontSize:20 }}>{p.img}</span></td>
-                <td><p style={{ fontWeight:600, fontSize:13 }}>{p.name}</p><p style={{ fontSize:11, color:"var(--t3)" }}>{p.sku}</p></td>
+                <td><p style={{ fontWeight:600, fontSize:13 }}>{p.name}</p></td>
                 <td><span className="bdg bb">{p.category}</span></td>
                 <td style={{ fontWeight:600, fontSize:13 }}>{fmtM(p.buyPrice)}</td>
                 <td style={{ fontWeight:600, fontSize:13, color:"#14B8A6" }}>{fmtM(p.sellPrice)}</td>
@@ -572,7 +638,7 @@ function ProductsPage({ prods, setProds, whs, showT }) {
             </div>
             <div className="g2" style={{ gap:10 }}>
               <Fld label="Tên sản phẩm" req error={errs.name}><input className="inp" placeholder="Tên sản phẩm" value={form.name} onChange={e => setForm(p => ({ ...p, name:e.target.value }))} style={{ borderColor:errs.name ? "#EF4444" : undefined }} /></Fld>
-              <Fld label="SKU" req error={errs.sku}><input className="inp" placeholder="VD: DELL-XPS13" value={form.sku} onChange={e => setForm(p => ({ ...p, sku:e.target.value }))} style={{ borderColor:errs.sku ? "#EF4444" : undefined }} /></Fld>
+              <Fld label="Mã SP (SKU)" req error={errs.sku}><input className="inp" placeholder="VD: DELL-XPS13" value={form.sku} onChange={e => setForm(p => ({ ...p, sku:e.target.value }))} style={{ borderColor:errs.sku ? "#EF4444" : undefined }} /></Fld>
               <Fld label="Danh mục"><select className="inp" value={form.category} onChange={e => setForm(p => ({ ...p, category:e.target.value }))}>{CATS.map(c => <option key={c}>{c}</option>)}</select></Fld>
               <Fld label="Kho chứa"><select className="inp" value={form.wid} onChange={e => setForm(p => ({ ...p, wid:e.target.value }))}>{whs.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</select></Fld>
               <Fld label="Giá nhập (₫)" req error={errs.buyPrice}><input className="inp" placeholder="25000000" value={form.buyPrice} onChange={e => setForm(p => ({ ...p, buyPrice:e.target.value }))} style={{ borderColor:errs.buyPrice ? "#EF4444" : undefined }} /></Fld>
@@ -592,7 +658,7 @@ function ProductsPage({ prods, setProds, whs, showT }) {
           </div>
         </div>
       )}
-      {modal === "del" && sel && <DelModal title="Xóa sản phẩm?" msg={`Xóa "${sel.name}" (${sel.id})?`} onOk={del} onClose={() => setModal(null)} />}
+      {modal === "del" && sel && <DelModal title="Xóa sản phẩm?" msg={`Xóa "${sel.name}" (${sel.sku})?`} onOk={del} onClose={() => setModal(null)} />}
     </div>
   );
 }
@@ -837,26 +903,10 @@ function OrderFormModal({ type, mode, order, prods, setProds, whs, supps, users,
           <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:8 }}>
             <p style={{ fontSize:13, fontWeight:700 }}>Danh sách sản phẩm</p>
             <div style={{ display:"flex", gap:6 }}>
-              <button className="btn btnS" style={{ fontSize:12, padding:"5px 10px", background:"rgba(20,184,166,.1)", color:"#14B8A6" }} onClick={() => setShowQuick(!showQuick)}><Plus size={12} />Tạo nhanh SP mới</button>
               <button className="btn btnS" style={{ fontSize:12, padding:"5px 10px" }} onClick={addItem}><Plus size={12} />Thêm SP</button>
             </div>
           </div>
           {errs.items && <p style={{ fontSize:12, color:"#EF4444", marginBottom:7 }}>{errs.items}</p>}
-          {showQuick && (
-            <div className="card" style={{ background:"var(--b2)", border:"1px solid var(--bd)", padding:12, borderRadius:10, marginBottom:13 }}>
-              <p style={{ fontSize:12, fontWeight:700, marginBottom:8, color:"var(--t2)" }}>Tạo nhanh sản phẩm mới vào kho hiện tại</p>
-              <div className="g3" style={{ gap:8 }}>
-                <Fld label="Tên sản phẩm *" error={qpErrs.name}><input className="inp" style={{ padding:"4px 8px", fontSize:12 }} placeholder="Tên SP..." value={qp.name} onChange={e => setQp(p => ({ ...p, name:e.target.value }))} /></Fld>
-                <Fld label="Mã SP / SKU *" error={qpErrs.sku}><input className="inp" style={{ padding:"4px 8px", fontSize:12 }} placeholder="Mã..." value={qp.sku} onChange={e => setQp(p => ({ ...p, sku:e.target.value }))} /></Fld>
-                <Fld label="Danh mục"><select className="inp" style={{ padding:"4px 8px", fontSize:12 }} value={qp.category} onChange={e => setQp(p => ({ ...p, category:e.target.value }))}>{CATS.map(c => <option key={c}>{c}</option>)}</select></Fld>
-                <Fld label="Giá nhập *" error={qpErrs.buyPrice}><input type="number" className="inp" style={{ padding:"4px 8px", fontSize:12 }} placeholder="0" value={qp.buyPrice} onChange={e => setQp(p => ({ ...p, buyPrice:e.target.value }))} /></Fld>
-                <Fld label="Giá bán *" error={qpErrs.sellPrice}><input type="number" className="inp" style={{ padding:"4px 8px", fontSize:12 }} placeholder="0" value={qp.sellPrice} onChange={e => setQp(p => ({ ...p, sellPrice:e.target.value }))} /></Fld>
-                <div style={{ display:"flex", alignItems:"flex-end", justifyContent:"flex-end" }}>
-                  <button className="btn btnP" style={{ fontSize:12, padding:"6px 12px", width:"100%" }} onClick={handleQuickAdd}>Lưu & Chọn</button>
-                </div>
-              </div>
-            </div>
-          )}
           {form.items.length === 0 ? (
             <div style={{ textAlign:"center", padding:"16px", background:"var(--b2)", borderRadius:10, color:"var(--t3)", fontSize:13 }}>Chưa có sản phẩm. Nhấn "+ Thêm SP"</div>
           ) : (
@@ -990,7 +1040,12 @@ function ImportsPage({ imps, setImps, prods, setProds, whs, supps, users, showT 
             {filtered.length === 0 && <tr><td colSpan={9} style={{ textAlign:"center", padding:"26px 0", color:"var(--t3)" }}>Không có phiếu nhập phù hợp</td></tr>}
             {filtered.map(o => (
               <tr key={o.id}>
-                <td><span className="mn" style={{ color:"#2563EB", fontWeight:700 }}>{o.id}</span></td>
+                <td>
+                  <span className="mn" style={{ color:"#2563EB", fontWeight:700 }}>{o.id}</span>
+                  <p style={{ fontSize:11, color:"var(--t3)", marginTop:2, maxWidth:180, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }} title={o.items.map(i => i.pname).join(", ")}>
+                    {o.items.map(i => i.pname).join(", ")}
+                  </p>
+                </td>
                 <td><div style={{ display:"flex", alignItems:"center", gap:7 }}><div className="av" style={{ width:26, height:26, fontSize:9 }}>{(o.sname || "??").slice(0, 2).toUpperCase()}</div><span style={{ fontSize:13, fontWeight:600 }}>{o.sname}</span></div></td>
                 <td style={{ fontSize:13, color:"var(--t2)" }}>{o.wname}</td>
                 <td><span className="bdg bb">{o.items.length} SP · {o.items.reduce((s, i) => s + i.qty, 0)} đv</span></td>
@@ -1068,7 +1123,12 @@ function ExportsPage({ exps, setExps, prods, setProds, whs, users, showT }) {
             {filtered.length === 0 && <tr><td colSpan={9} style={{ textAlign:"center", padding:"26px 0", color:"var(--t3)" }}>Không có phiếu xuất phù hợp</td></tr>}
             {filtered.map(o => (
               <tr key={o.id}>
-                <td><span className="mn" style={{ color:"#06B6D4", fontWeight:700 }}>{o.id}</span></td>
+                <td>
+                  <span className="mn" style={{ color:"#06B6D4", fontWeight:700 }}>{o.id}</span>
+                  <p style={{ fontSize:11, color:"var(--t3)", marginTop:2, maxWidth:180, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }} title={o.items.map(i => i.pname).join(", ")}>
+                    {o.items.map(i => i.pname).join(", ")}
+                  </p>
+                </td>
                 <td><div style={{ display:"flex", alignItems:"center", gap:7 }}><div className="av" style={{ width:26, height:26, fontSize:9, background:"linear-gradient(135deg,#06B6D4,#14B8A6)" }}>{(o.customer || "??").slice(0, 2).toUpperCase()}</div><span style={{ fontSize:13, fontWeight:600 }}>{o.customer}</span></div></td>
                 <td style={{ fontSize:13, color:"var(--t2)" }}>{o.wname}</td>
                 <td><span className="bdg bc">{o.items.length} SP · {o.items.reduce((s, i) => s + i.qty, 0)} đv</span></td>
@@ -1152,14 +1212,16 @@ function SuppliersPage({ supps, setSupps, showT }) {
       {(modal === "add" || modal === "edit") && (
         <div className="mo" onClick={e => e.target === e.currentTarget && setModal(null)}>
           <div className="mb">
-            <div className="mt">{modal === "add" ? "Thêm NCC" : "Sửa NCC"}<button className="btn btnS btnI" style={{ marginLeft:"auto" }} onClick={() => setModal(null)}><X size={13} /></button></div>
-            <div className="g2">
-              <Fld label="Tên nhà CC" req error={errs.name}><input className="inp" value={form.name} onChange={e=>setForm({...form,name:e.target.value})} /></Fld>
-              <Fld label="Mã NCC" req error={errs.code}><input className="inp" value={form.code} onChange={e=>setForm({...form,code:e.target.value})} /></Fld>
+            <div className="mt">{modal === "add" ? "Thêm nhà cung cấp mới" : `Sửa nhà cung cấp: ${sel?.name}`}<button className="btn btnS btnI" style={{ marginLeft:"auto" }} onClick={() => setModal(null)}><X size={13} /></button></div>
+            <div className="g2" style={{ gap:10 }}>
+              <Fld label="Tên nhà CC" req error={errs.name}><input className="inp" value={form.name} onChange={e=>setForm({...form,name:e.target.value})} style={{ borderColor:errs.name ? "#EF4444" : undefined }} /></Fld>
+              <Fld label="Mã NCC" req error={errs.code}><input className="inp" value={form.code} onChange={e=>setForm({...form,code:e.target.value})} style={{ borderColor:errs.code ? "#EF4444" : undefined }} /></Fld>
               <Fld label="Email"><input className="inp" value={form.email} onChange={e=>setForm({...form,email:e.target.value})} /></Fld>
               <Fld label="SĐT"><input className="inp" value={form.phone} onChange={e=>setForm({...form,phone:e.target.value})} /></Fld>
+              <Fld label="Địa chỉ"><input className="inp" value={form.address} onChange={e=>setForm({...form,address:e.target.value})} /></Fld>
+              <Fld label="Người liên hệ"><input className="inp" value={form.contact} onChange={e=>setForm({...form,contact:e.target.value})} /></Fld>
             </div>
-            <div style={{ display:"flex", gap:8, justifyContent:"flex-end", marginTop:17 }}><button className="btn btnS" onClick={() => setModal(null)}>Hủy</button><button className="btn btnP" onClick={save}>Lưu</button></div>
+            <div style={{ display:"flex", gap:8, justifyContent:"flex-end", marginTop:17 }}><button className="btn btnS" onClick={() => setModal(null)}>Hủy</button><button className="btn btnP" onClick={save}>Lưu nhà cung cấp</button></div>
           </div>
         </div>
       )}
@@ -1440,7 +1502,7 @@ export default function App() {
       <div className={`app${dark ? " dark" : " light"}`}>
         <Sidebar cur={pg} onNav={setPg} col={col} onCol={() => setCol(v => !v)} onLogout={handleLogout} adminProfile={adminProfile} />
         <div className="main" style={{ marginLeft:ml }}>
-          <Topbar dark={dark} onDark={() => setDark(v => !v)} pg={pg} nc={nc} onLogout={handleLogout} onAction={setSysModal} adminProfile={adminProfile} />
+          <Topbar dark={dark} onDark={() => setDark(v => !v)} pg={pg} nc={nc} onLogout={handleLogout} onAction={setSysModal} adminProfile={adminProfile} prods={prods} />
           <div className="pc">{renderPage()}</div>
         </div>
 

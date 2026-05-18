@@ -375,11 +375,16 @@ function Dashboard({ prods, whs, imps, exps, dark }) {
 
   const chartData = useMemo(() => {
     const data = [];
+    const now = new Date();
+    
     for (let i = 6; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
+      const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
       const label = `${d.getDate()}/${d.getMonth() + 1}`;
-      const dateStr = d.toISOString().slice(0, 10);
+      
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      const dateStr = `${yyyy}-${mm}-${dd}`;
       
       const n = imps
         .filter(o => o.date === dateStr && o.status === "completed")
@@ -394,9 +399,12 @@ function Dashboard({ prods, whs, imps, exps, dark }) {
     
     const totalVolume = data.reduce((s, i) => s + i.n + i.x, 0);
     if (totalVolume === 0) {
-      const allDates = [...new Set([...imps, ...exps].map(o => o.date))].sort().slice(-7);
-      if (allDates.length > 0) {
-        return allDates.map(dateStr => {
+      const completedTransactions = [...imps, ...exps].filter(o => o.status === "completed" && o.date);
+      const uniqueDates = [...new Set(completedTransactions.map(o => o.date))].sort();
+      const last7Dates = uniqueDates.slice(-7);
+      
+      if (last7Dates.length > 0) {
+        return last7Dates.map(dateStr => {
           const parts = dateStr.split("-");
           const label = parts.length === 3 ? `${parts[2]}/${parts[1]}` : dateStr;
           const n = imps.filter(o => o.date === dateStr && o.status === "completed").reduce((sum, o) => sum + o.items.reduce((s, it) => s + Number(it.qty || 0), 0), 0);
@@ -407,6 +415,20 @@ function Dashboard({ prods, whs, imps, exps, dark }) {
     }
     return data;
   }, [imps, exps]);
+
+  const dynamicPie = useMemo(() => {
+    const totalVal = prods.reduce((s, p) => s + p.stock * p.buyPrice, 0) || 1;
+    const cats = [...new Set(prods.map(p => p.category))];
+    const colors = ["#2563EB", "#8B5CF6", "#06B6D4", "#14B8A6", "#F59E0B", "#EF4444", "#EC4899", "#10B981"];
+    return cats.map((c, i) => {
+      const val = prods.filter(p => p.category === c).reduce((s, p) => s + p.stock * p.buyPrice, 0);
+      return {
+        n: c,
+        v: Math.round((val / totalVal) * 100) || 0,
+        c: colors[i % colors.length]
+      };
+    }).filter(item => item.v > 0);
+  }, [prods]);
 
   const exportDashboardReport = () => {
     const wb = XLSX.utils.book_new();
@@ -472,8 +494,8 @@ function Dashboard({ prods, whs, imps, exps, dark }) {
         </div>
         <div className="card">
           <div className="st"><Target size={15} style={{ color:"#8B5CF6" }} />Danh mục sản phẩm</div>
-          <ResponsiveContainer width="100%" height={148}><PieChart><Pie data={CHART_PIE} cx="50%" cy="50%" innerRadius={40} outerRadius={62} paddingAngle={3} dataKey="v">{CHART_PIE.map((e, i) => <Cell key={i} fill={e.c} />)}</Pie><Tooltip content={<TT />} formatter={v => [`${v}%`, ""]} /></PieChart></ResponsiveContainer>
-          {CHART_PIE.map(it => <div key={it.n} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", fontSize:12, marginBottom:3 }}><div style={{ display:"flex", alignItems:"center", gap:5 }}><span style={{ width:8, height:8, borderRadius:2, background:it.c, display:"inline-block" }} /><span style={{ color:"var(--t2)" }}>{it.n}</span></div><span style={{ fontWeight:700 }}>{it.v}%</span></div>)}
+          <ResponsiveContainer width="100%" height={148}><PieChart><Pie data={dynamicPie} cx="50%" cy="50%" innerRadius={40} outerRadius={62} paddingAngle={3} dataKey="v">{dynamicPie.map((e, i) => <Cell key={i} fill={e.c} />)}</Pie><Tooltip content={<TT />} formatter={v => [`${v}%`, ""]} /></PieChart></ResponsiveContainer>
+          {dynamicPie.map(it => <div key={it.n} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", fontSize:12, marginBottom:3 }}><div style={{ display:"flex", alignItems:"center", gap:5 }}><span style={{ width:8, height:8, borderRadius:2, background:it.c, display:"inline-block" }} /><span style={{ color:"var(--t2)" }}>{it.n}</span></div><span style={{ fontWeight:700 }}>{it.v}%</span></div>)}
         </div>
       </div>
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:14 }}>

@@ -368,8 +368,8 @@ function Topbar({ dark, onDark, pg, nc, onLogout, onAction, adminProfile, prods 
 function Dashboard({ prods, whs, imps, exps, dark }) {
   const tc = dark ? "#94A3B8" : "#64748B";
   const gc = dark ? "rgba(148,163,184,.06)" : "rgba(0,0,0,.05)";
-  const tStock = prods.reduce((s, p) => s + p.stock, 0);
-  const tVal   = prods.reduce((s, p) => s + p.stock * p.buyPrice, 0);
+  const tStock = prods.reduce((s, p) => s + Math.max(0, p.stock), 0);
+  const tVal   = prods.reduce((s, p) => s + Math.max(0, p.stock) * p.buyPrice, 0);
   const pend   = [...imps, ...exps].filter(o => ["pending","processing"].includes(o.status)).length;
   const lowN   = prods.filter(p => ["low","critical","out"].includes(p.status)).length;
 
@@ -417,11 +417,11 @@ function Dashboard({ prods, whs, imps, exps, dark }) {
   }, [imps, exps]);
 
   const dynamicPie = useMemo(() => {
-    const totalVal = prods.reduce((s, p) => s + p.stock * p.buyPrice, 0) || 1;
+    const totalVal = prods.reduce((s, p) => s + Math.max(0, p.stock) * p.buyPrice, 0) || 1;
     const cats = [...new Set(prods.map(p => p.category))];
     const colors = ["#2563EB", "#8B5CF6", "#06B6D4", "#14B8A6", "#F59E0B", "#EF4444", "#EC4899", "#10B981"];
     return cats.map((c, i) => {
-      const val = prods.filter(p => p.category === c).reduce((s, p) => s + p.stock * p.buyPrice, 0);
+      const val = prods.filter(p => p.category === c).reduce((s, p) => s + Math.max(0, p.stock) * p.buyPrice, 0);
       return {
         n: c,
         v: Math.round((val / totalVal) * 100) || 0,
@@ -1414,11 +1414,11 @@ function ReportsPage({ prods, imps, exps, dark }) {
   const tc = dark ? "#94A3B8" : "#64748B"; const gc = dark ? "rgba(148,163,184,.06)" : "rgba(0,0,0,.05)";
 
   const dynamicPie = useMemo(() => {
-    const totalVal = prods.reduce((s, p) => s + p.stock * p.buyPrice, 0) || 1;
+    const totalVal = prods.reduce((s, p) => s + Math.max(0, p.stock) * p.buyPrice, 0) || 1;
     const cats = [...new Set(prods.map(p => p.category))];
     const colors = ["#2563EB", "#8B5CF6", "#06B6D4", "#14B8A6", "#F59E0B", "#EF4444", "#EC4899", "#10B981"];
     return cats.map((c, i) => {
-      const val = prods.filter(p => p.category === c).reduce((s, p) => s + p.stock * p.buyPrice, 0);
+      const val = prods.filter(p => p.category === c).reduce((s, p) => s + Math.max(0, p.stock) * p.buyPrice, 0);
       return {
         n: c,
         v: Math.round((val / totalVal) * 100) || 0,
@@ -1428,10 +1428,32 @@ function ReportsPage({ prods, imps, exps, dark }) {
   }, [prods]);
 
   const dynamicBar = useMemo(() => {
-    const months = [];
-    const d = new Date();
+    const completedOrds = [...imps, ...exps].filter(o => o.status === "completed" && o.date);
+    let endDate = new Date();
+    
+    // Check if there is any completed transaction in the default 6 months window
+    const defaultMonths = [];
+    const tempD = new Date();
     for (let i = 5; i >= 0; i--) {
-      const targetDate = new Date(d.getFullYear(), d.getMonth() - i, 1);
+      defaultMonths.push(new Date(tempD.getFullYear(), tempD.getMonth() - i, 1));
+    }
+    
+    const hasAnyInDefault = completedOrds.some(o => {
+      const od = new Date(o.date);
+      return defaultMonths.some(m => od.getFullYear() === m.getFullYear() && od.getMonth() === m.getMonth());
+    });
+    
+    // If no transactions in the default 6-month window but transactions exist elsewhere,
+    // shift the window to end at the latest transaction month to populate the chart beautifully!
+    if (!hasAnyInDefault && completedOrds.length > 0) {
+      const dates = completedOrds.map(o => new Date(o.date));
+      const latestDate = new Date(Math.max(...dates.map(d => d.getTime())));
+      endDate = latestDate;
+    }
+
+    const months = [];
+    for (let i = 5; i >= 0; i--) {
+      const targetDate = new Date(endDate.getFullYear(), endDate.getMonth() - i, 1);
       const mLabel = `T${targetDate.getMonth() + 1}/${String(targetDate.getFullYear()).slice(-2)}`;
       months.push({
         label: mLabel,
@@ -1459,8 +1481,8 @@ function ReportsPage({ prods, imps, exps, dark }) {
 
       return {
         m: m.label,
-        n: Math.round(impTotal / 1000000) || 0,
-        x: Math.round(expTotal / 1000000) || 0
+        n: Number((impTotal / 1000000).toFixed(2)) || 0,
+        x: Number((expTotal / 1000000).toFixed(2)) || 0
       };
     });
   }, [imps, exps]);

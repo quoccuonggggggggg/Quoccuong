@@ -252,7 +252,7 @@ const Fld = ({ label, req, error, children }) => (
 ═══════════════════════════════════════════════════════════ */
 const MENU = [
   { sec:"TỔNG QUAN",   items:[{ id:"dashboard",  l:"Dashboard",    I:LayoutDashboard }] },
-  { sec:"QUẢN LÝ KHO", items:[{ id:"products",   l:"Sản phẩm",    I:Package }, { id:"warehouses", l:"Kho hàng",   I:Warehouse }, { id:"imports", l:"Nhập kho", I:ArrowDownToLine, b:2 }, { id:"exports", l:"Xuất kho", I:ArrowUpFromLine }] },
+  { sec:"QUẢN LÝ KHO", items:[{ id:"imports", l:"Nhập kho", I:ArrowDownToLine, b:2 }, { id:"exports", l:"Xuất kho", I:ArrowUpFromLine }, { id:"warehouses", l:"Kho hàng",   I:Warehouse }, { id:"products",   l:"Sản phẩm",    I:Package }] },
   { sec:"ĐỐI TÁC",     items:[{ id:"suppliers",  l:"Nhà cung cấp", I:Truck }, { id:"users", l:"Người dùng", I:Users }] },
   { sec:"PHÂN TÍCH",   items:[{ id:"reports",    l:"Báo cáo",     I:BarChart3 }, { id:"activity", l:"Nhật ký HĐ", I:Activity }] },
   { sec:"CÀI ĐẶT",     items:[{ id:"settings",   l:"Cài đặt",     I:Settings }] },

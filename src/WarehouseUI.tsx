@@ -13,7 +13,7 @@ import {
   Eye, Download, AlertTriangle, CheckCircle, XCircle, Clock, TrendingUp,
   DollarSign, Phone, Mail, Shield, LogOut, User, X, FileText, MapPin,
   Lock, Boxes, BarChart2, PackageCheck, PackageX, Receipt, FileSpreadsheet,
-  Printer, ChevronFirst, ChevronLast, Target, Award, Zap,
+  Printer, ChevronFirst, ChevronLast, Target, Award, Zap, Menu,
 } from "lucide-react";
 
 const getDaysAgo = (num) => {
@@ -103,8 +103,9 @@ const CSS = `
 .app{font-family:'Plus Jakarta Sans',-apple-system,sans-serif;display:flex;min-height:100vh;transition:background .3s,color .3s}
 .dark{--b0:#020617;--b1:#0F172A;--b2:#1E293B;--b3:#263348;--card:rgba(15,23,42,.88);--bd:rgba(148,163,184,.1);--bd2:rgba(148,163,184,.2);--t1:#F1F5F9;--t2:#94A3B8;--t3:#64748B;background:#020617;color:#F1F5F9}
 .light{--b0:#F0F4F8;--b1:#fff;--b2:#F8FAFC;--b3:#EEF2FF;--card:rgba(255,255,255,.95);--bd:rgba(0,0,0,.07);--bd2:rgba(0,0,0,.13);--t1:#0F172A;--t2:#475569;--t3:#94A3B8;background:#F0F4F8;color:#0F172A}
-.sb{width:256px;min-height:100vh;background:var(--b1);border-right:1px solid var(--bd);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:100;transition:width .3s cubic-bezier(.4,0,.2,1);overflow:hidden}
+.sb{width:256px;min-height:100vh;background:var(--b1);border-right:1px solid var(--bd);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:100;transition:width .3s cubic-bezier(.4,0,.2,1), transform .3s cubic-bezier(.4,0,.2,1);overflow:hidden}
 .sb.col{width:68px}
+.sb.hide{transform:translateX(-100%);border-right:none}
 .sb-logo{padding:18px 15px 12px;display:flex;align-items:center;gap:11px;border-bottom:1px solid var(--bd)}
 .logo-ic{width:38px;height:38px;background:linear-gradient(135deg,#2563EB,#06B6D4);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 0 18px rgba(37,99,235,.4)}
 .logo-t{font-size:15px;font-weight:800;background:linear-gradient(135deg,#60A5FA,#06B6D4);-webkit-background-clip:text;-webkit-text-fill-color:transparent;white-space:nowrap}
@@ -258,7 +259,7 @@ const MENU = [
   { sec:"CÀI ĐẶT",     items:[{ id:"settings",   l:"Cài đặt",     I:Settings }] },
 ];
 
-function Sidebar({ cur, onNav, col, onCol, onLogout, adminProfile }) {
+function Sidebar({ cur, onNav, col, onCol, sbH, onLogout, adminProfile }) {
   const initials = adminProfile.name
     .split(" ")
     .filter(Boolean)
@@ -268,7 +269,7 @@ function Sidebar({ cur, onNav, col, onCol, onLogout, adminProfile }) {
     .toUpperCase() || "AD";
 
   return (
-    <nav className={`sb${col ? " col" : ""}`}>
+    <nav className={`sb${col ? " col" : ""}${sbH ? " hide" : ""}`}>
       <div className="sb-logo">
         <div className="logo-ic"><Boxes size={20} color="#fff" /></div>
         {!col && <div><div className="logo-t">WMS Pro</div><div className="logo-s">Warehouse Management</div></div>}
@@ -298,7 +299,7 @@ function Sidebar({ cur, onNav, col, onCol, onLogout, adminProfile }) {
   );
 }
 
-function Topbar({ dark, onDark, pg, nc, onLogout, onAction, adminProfile, prods }) {
+function Topbar({ dark, onDark, pg, nc, onLogout, onAction, adminProfile, prods, onToggleSidebar }) {
   const [su, setSu] = useState(false);
   const [showNotif, setShowNotif] = useState(false);
   const LBL = { dashboard: "Dashboard", products: "Sản phẩm", warehouses: "Kho hàng", imports: "Nhập kho", exports: "Xuất kho", suppliers: "Nhà cung cấp", users: "Người dùng", reports: "Báo cáo", activity: "Nhật ký HĐ", settings: "Cài đặt" };
@@ -313,6 +314,9 @@ function Topbar({ dark, onDark, pg, nc, onLogout, onAction, adminProfile, prods 
 
   return (
     <div className="tb">
+      <button className="ib" onClick={onToggleSidebar} style={{ marginRight: 5 }} title="Ẩn/Hiện Menu">
+        <Menu size={16} />
+      </button>
       <div style={{ display: "flex", alignItems: "center", gap: 5, marginRight: 7 }}>
         <span style={{ fontSize: 11, color: "var(--t3)" }}>WMS Pro</span>
         <ChevronRight size={11} color="var(--t3)" />
@@ -1535,6 +1539,7 @@ export default function App() {
   const [dark,  setDark]  = useState(true);
   const [pg,    setPg]    = useState("dashboard");
   const [col,   setCol]   = useState(false);
+  const [sbH,   setSbH]   = useState(false);
   const [toast, setToast] = useState(null);
 
   /* Shared mutable state — all modules read & write here */
@@ -1868,7 +1873,7 @@ export default function App() {
 
   const showT = (msg, type = "success") => { setToast({ msg, type }); setTimeout(() => setToast(null), 3500); };
   const nc    = prods.filter(p => ["low","critical","out"].includes(p.status)).length;
-  const ml    = col ? 68 : 256;
+  const ml    = sbH ? 0 : (col ? 68 : 256);
   const props = { prods, setProds, whs, setWhs, imps, setImps, exps, setExps, users, setUsers, supps, setSupps, showT, dark, loginHistory };
 
   const handleLogout = async () => {
@@ -1917,9 +1922,9 @@ export default function App() {
       <style>{CSS}</style>
       <Toast t={toast} close={() => setToast(null)} />
       <div className={`app${dark ? " dark" : " light"}`}>
-        <Sidebar cur={pg} onNav={setPg} col={col} onCol={() => setCol(v => !v)} onLogout={handleLogout} adminProfile={adminProfile} />
+        <Sidebar cur={pg} onNav={setPg} col={col} onCol={() => setCol(v => !v)} sbH={sbH} onLogout={handleLogout} adminProfile={adminProfile} />
         <div className="main" style={{ marginLeft:ml }}>
-          <Topbar dark={dark} onDark={() => setDark(v => !v)} pg={pg} nc={nc} onLogout={handleLogout} onAction={setSysModal} adminProfile={adminProfile} prods={prods} />
+          <Topbar dark={dark} onDark={() => setDark(v => !v)} pg={pg} nc={nc} onLogout={handleLogout} onAction={setSysModal} adminProfile={adminProfile} prods={prods} onToggleSidebar={() => setSbH(v => !v)} />
           <div className="pc">{renderPage()}</div>
         </div>
 

@@ -193,7 +193,7 @@ const genId = (p, l) => `${p}${String(l.length + 1).padStart(3, "0")}`;
 const sSt   = s => s === 0 ? "out" : s <= 5 ? "critical" : s <= 10 ? "low" : "active";
 const orderTotal = items => items.reduce((s, i) => s + (i.qty||0)*(i.price||0), 0);
 
-const STMAP = { active:{l:"Hoạt động",c:"bg"}, low:{l:"Tồn thấp",c:"by"}, critical:{l:"Nguy hiểm",c:"br"}, out:{l:"Hết hàng",c:"br"}, inactive:{l:"Ngừng HĐ",c:"bgr"}, completed:{l:"Hoàn thành",c:"bg"}, processing:{l:"Đang xử lý",c:"bb"}, pending:{l:"Chờ duyệt",c:"by"}, cancelled:{l:"Đã hủy",c:"bgr"} };
+const STMAP = { active:{l:"Hoạt động",c:"bg"}, low:{l:"Tồn thấp",c:"by"}, critical:{l:"Sắp hết hàng",c:"br"}, out:{l:"Hết hàng",c:"br"}, inactive:{l:"Ngừng HĐ",c:"bgr"}, completed:{l:"Hoàn thành",c:"bg"}, processing:{l:"Đang xử lý",c:"bb"}, pending:{l:"Chờ duyệt",c:"by"}, cancelled:{l:"Đã hủy",c:"bgr"} };
 const RMAP  = { Admin:{l:"Admin",c:"bp"}, Manager:{l:"Quản lý",c:"bb"}, Staff:{l:"Nhân viên",c:"bg"}, WarehouseStaff:{l:"NV Kho",c:"bc"}, Accountant:{l:"Kế toán",c:"by"} };
 const RGRAD = { Admin:"8B5CF6,2563EB", Manager:"2563EB,06B6D4", Staff:"14B8A6,2563EB", WarehouseStaff:"06B6D4,14B8A6", Accountant:"F59E0B,EF4444" };
 
@@ -340,11 +340,10 @@ function Topbar({ dark, onDark, pg, nc, onLogout, onAction, adminProfile, prods,
                   </div>
                 ) : (
                   prods.filter(p => ["low","critical","out"].includes(p.status)).map(p => {
-                    const statusText = p.stock === 0 ? "Đã hết hàng!" : p.stock <= 5 ? `Tồn kho nguy hiểm! (${p.stock} đv)` : `Tồn kho thấp! (${p.stock} đv)`;
+                    const statusText = p.stock === 0 ? "Đã hết hàng!" : p.stock <= 5 ? `Sắp hết hàng! (${p.stock} đv)` : `Tồn kho thấp! (${p.stock} đv)`;
                     const color = p.stock === 0 ? "#EF4444" : p.stock <= 5 ? "#EF4444" : "#F59E0B";
                     return (
                       <div key={p.id} className="ddi" style={{ display: "flex", gap: 10, alignItems: "flex-start", padding: "10px 12px" }}>
-                        <span style={{ fontSize: 16 }}>{p.img}</span>
                         <div style={{ flex: 1 }}>
                           <p style={{ fontWeight: 600, fontSize: 12 }}>{p.name}</p>
                           <p style={{ fontSize: 11, color, fontWeight: 600, marginTop: 2 }}>{statusText}</p>
@@ -375,7 +374,7 @@ function Topbar({ dark, onDark, pg, nc, onLogout, onAction, adminProfile, prods,
 /* ═══════════════════════════════════════════════════════════
    DASHBOARD
 ═══════════════════════════════════════════════════════════ */
-function Dashboard({ prods, whs, imps, exps, dark }) {
+function Dashboard({ prods, whs, imps, exps, dark, logActivity }) {
   const tc = dark ? "#94A3B8" : "#64748B";
   const gc = dark ? "rgba(148,163,184,.06)" : "rgba(0,0,0,.05)";
   const tStock = prods.reduce((s, p) => s + Math.max(0, p.stock), 0);
@@ -469,6 +468,7 @@ function Dashboard({ prods, whs, imps, exps, dark }) {
     XLSX.utils.book_append_sheet(wb, wsWh, "Công suất kho");
     
     XLSX.writeFile(wb, "BaoCaoDashboard_WMS.xlsx");
+    logActivity("📊", "Xuất báo cáo tổng quan hệ thống ra file Excel");
   };
 
   return (
@@ -522,9 +522,8 @@ function Dashboard({ prods, whs, imps, exps, dark }) {
           <div className="st"><AlertTriangle size={15} style={{ color:"#F59E0B" }} />Cảnh báo tồn kho</div>
           {prods.filter(p => ["low","critical","out"].includes(p.status)).slice(0, 5).map(p => { const wh = whs.find(w => w.id === p.wid); return (
             <div key={p.id} style={{ display:"flex", alignItems:"center", gap:9, padding:"7px 0", borderBottom:"1px solid var(--bd)" }}>
-              <span style={{ fontSize:18 }}>{p.img}</span>
               <div style={{ flex:1 }}><p style={{ fontSize:12, fontWeight:600 }}>{p.name}</p><p style={{ fontSize:11, color:"var(--t3)" }}>{wh?.name}</p></div>
-              <div style={{ textAlign:"right" }}><Bdg s={p.status} /><p style={{ fontSize:13, fontWeight:800, color:p.stock <= 5 ? "#EF4444" : "#F59E0B", marginTop:2 }}>{p.stock}</p></div>
+              <div style={{ textAlign:"right" }}><Bdg s={p.status === 'critical' ? 'critical' : p.status} /><p style={{ fontSize:13, fontWeight:800, color:p.stock <= 5 ? "#EF4444" : "#F59E0B", marginTop:2 }}>{p.stock}</p></div>
             </div>
           ); })}
         </div>
@@ -573,7 +572,7 @@ function ProductsPage({ prods, setProds, whs, showT }) {
       gia_ban: +form.sellPrice,
       warehouse_id: form.wid,
       vi_tri_kho: form.loc,
-      hinh_anh: form.img || '📦',
+      hinh_anh: '',
       mo_ta: form.desc || '',
       ngung_kinh_doanh: form.status === 'inactive'
     };
@@ -584,11 +583,13 @@ function ProductsPage({ prods, setProds, whs, showT }) {
       const newId = data[0].id;
       setProds(p => [{ ...form, id: newId, buyPrice:+form.buyPrice, sellPrice:+form.sellPrice, stock:st, status:sSt(st), upd:today() }, ...p]);
       showT(`✅ Đã thêm "${form.name}"`);
+      logActivity("➕", `Thêm sản phẩm mới: ${form.name} (${form.sku})`);
     } else {
       const { error } = await supabase.from('goods').update(dbData).eq('id', sel.id);
       if (error) { showT("Lỗi: " + error.message, "error"); return; }
       setProds(p => p.map(x => x.id === sel.id ? { ...x, ...form, buyPrice:+form.buyPrice, sellPrice:+form.sellPrice, stock:st, status:sSt(st) } : x));
       showT(`✅ Đã cập nhật "${form.name}"`);
+      logActivity("✏️", `Cập nhật sản phẩm: ${form.name} (${form.sku})`);
     }
     setModal(null); setSel(null);
   };
@@ -597,6 +598,7 @@ function ProductsPage({ prods, setProds, whs, showT }) {
     if (error) { showT("Lỗi: " + error.message, "error"); return; }
     setProds(p => p.filter(x => x.id !== sel.id));
     showT(`🗑️ Đã xóa "${sel.name}"`, "error");
+    logActivity("🗑️", `Xóa sản phẩm: ${sel.name} (${sel.sku})`);
     setModal(null);
     setSel(null);
   };
@@ -616,18 +618,17 @@ function ProductsPage({ prods, setProds, whs, showT }) {
           </div>
           <select className="inp" value={catF} onChange={e => { setCatF(e.target.value); setPg(1); }} style={{ width:"auto" }}><option value="all">Tất cả danh mục</option>{CATS.map(c => <option key={c}>{c}</option>)}</select>
           <select className="inp" value={whF} onChange={e => { setWhF(e.target.value); setPg(1); }} style={{ width:"auto" }}><option value="all">Tất cả kho</option>{whs.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</select>
-          <select className="inp" value={stF} onChange={e => { setStF(e.target.value); setPg(1); }} style={{ width:"auto" }}><option value="all">Tất cả TT</option><option value="active">Hoạt động</option><option value="low">Tồn thấp</option><option value="critical">Nguy hiểm</option><option value="out">Hết hàng</option></select>
+          <select className="inp" value={stF} onChange={e => { setStF(e.target.value); setPg(1); }} style={{ width:"auto" }}><option value="all">Tất cả TT</option><option value="active">Hoạt động</option><option value="low">Tồn thấp</option><option value="critical">Sắp hết hàng</option><option value="out">Hết hàng</option></select>
         </div>
       </div>
       <div className="card" style={{ padding:0, overflow:"hidden" }}>
         <table className="dt">
-          <thead><tr><th>Mã SP</th><th>Ảnh</th><th>Tên sản phẩm</th><th>Danh mục</th><th>Giá nhập</th><th>Giá bán</th><th>Tồn kho</th><th>Kho</th><th>Trạng thái</th><th></th></tr></thead>
+          <thead><tr><th>Mã SP</th><th>Tên sản phẩm</th><th>Danh mục</th><th>Giá nhập</th><th>Giá bán</th><th>Tồn kho</th><th>Kho</th><th>Trạng thái</th><th></th></tr></thead>
           <tbody>
-            {shown.length === 0 && <tr><td colSpan={10} style={{ textAlign:"center", padding:"35px 0", color:"var(--t3)" }}>Không tìm thấy sản phẩm</td></tr>}
+            {shown.length === 0 && <tr><td colSpan={9} style={{ textAlign:"center", padding:"35px 0", color:"var(--t3)" }}>Không tìm thấy sản phẩm</td></tr>}
             {shown.map(p => { const wh = whs.find(w => w.id === p.wid); return (
               <tr key={p.id}>
                 <td><span className="mn" style={{ fontSize:12, color:"var(--t1)", fontWeight:700 }}>{p.sku}</span></td>
-                <td><span style={{ fontSize:20 }}>{p.img}</span></td>
                 <td><p style={{ fontWeight:600, fontSize:13 }}>{p.name}</p></td>
                 <td><span className="bdg bb">{p.category}</span></td>
                 <td style={{ fontWeight:600, fontSize:13 }}>{fmtM(p.buyPrice)}</td>
@@ -662,12 +663,6 @@ function ProductsPage({ prods, setProds, whs, showT }) {
               {modal === "add" ? "Thêm sản phẩm mới" : `Chỉnh sửa: ${sel?.name}`}
               <button className="btn btnS btnI" style={{ marginLeft:"auto" }} onClick={() => setModal(null)}><X size={13} /></button>
             </div>
-            <div style={{ marginBottom:13 }}>
-              <label style={{ fontSize:12, fontWeight:600, color:"var(--t2)", marginBottom:6, display:"block" }}>Biểu tượng sản phẩm</label>
-              <div style={{ display:"flex", gap:5, flexWrap:"wrap" }}>
-                {EMOJIS.map(e => <button key={e} onClick={() => setForm(p => ({ ...p, img:e }))} style={{ fontSize:19, padding:"4px 7px", borderRadius:8, border:`2px solid ${form.img === e ? "#2563EB" : "var(--bd)"}`, background:"var(--b2)", cursor:"pointer" }}>{e}</button>)}
-              </div>
-            </div>
             <div className="g2" style={{ gap:10 }}>
               <Fld label="Tên sản phẩm" req error={errs.name}><input className="inp" placeholder="Tên sản phẩm" value={form.name} onChange={e => setForm(p => ({ ...p, name:e.target.value }))} style={{ borderColor:errs.name ? "#EF4444" : undefined }} /></Fld>
               <Fld label="Mã SP (SKU)" req error={errs.sku}><input className="inp" placeholder="VD: DELL-XPS13" value={form.sku} onChange={e => setForm(p => ({ ...p, sku:e.target.value }))} style={{ borderColor:errs.sku ? "#EF4444" : undefined }} /></Fld>
@@ -698,14 +693,14 @@ function ProductsPage({ prods, setProds, whs, showT }) {
 /* ═══════════════════════════════════════════════════════════
    WAREHOUSES PAGE
 ═══════════════════════════════════════════════════════════ */
-function WarehousesPage({ whs, setWhs, prods, showT }) {
+function WarehousesPage({ whs, setWhs, prods, showT, logActivity }) {
   const [modal, setModal]   = useState(null); const [sel, setSel] = useState(null); const [form, setForm] = useState({}); const [errs, setErrs] = useState({});
   const [activeWh, setActiveWh] = useState(null);
 
   const open = w => { setSel(w); setForm({ ...w, capacity:String(w.capacity), zones:String(w.zones) }); setErrs({}); setModal("edit"); };
-  const del  = async () => { if (prods.some(p => p.wid === sel.id)) { showT("⚠️ Không thể xóa kho còn chứa sản phẩm", "warn"); setModal(null); return; } const { error } = await supabase.from('warehouses').delete().eq('id', sel.id); if (error) { showT("Lỗi xóa kho: " + error.message, "error"); return; } setWhs(p => p.filter(x => x.id !== sel.id)); showT(`🗑️ Đã xóa kho "${sel.name}"`, "error"); setModal(null); };
+  const del  = async () => { if (prods.some(p => p.wid === sel.id)) { showT("⚠️ Không thể xóa kho còn chứa sản phẩm", "warn"); setModal(null); return; } const { error } = await supabase.from('warehouses').delete().eq('id', sel.id); if (error) { showT("Lỗi xóa kho: " + error.message, "error"); return; } setWhs(p => p.filter(x => x.id !== sel.id)); showT(`🗑️ Đã xóa kho "${sel.name}"`, "error"); logActivity("🗑️", `Xóa kho hàng: ${sel.name}`); setModal(null); };
   const validate = () => { const e = {}; if (!form.name?.trim()) e.name = "Bắt buộc"; if (isNaN(+form.capacity) || +form.capacity <= 0) e.capacity = "Không hợp lệ"; if (isNaN(+form.zones) || +form.zones <= 0) e.zones = "Không hợp lệ"; if (!form.manager?.trim()) e.manager = "Bắt buộc"; setErrs(e); return !Object.keys(e).length; };
-  const save = async () => { if (!validate()) return; const dbData = { ten_kho: form.name, dia_chi: form.location || '', suc_chua: +form.capacity, so_khu_vuc: +form.zones, loai_kho: form.type || 'Kho thường', nhiet_do: form.temperature || '', quan_ly: form.manager, so_dien_thoai: form.phone || '', trang_thai: form.status || 'active' }; const { error } = await supabase.from('warehouses').update(dbData).eq('id', sel.id); if (error) { showT("Lỗi cập nhật kho: " + error.message, "error"); return; } setWhs(p => p.map(x => x.id === sel.id ? { ...x, ...form, capacity:+form.capacity, zones:+form.zones } : x)); showT(`✅ Đã cập nhật kho "${form.name}"`); setModal(null); };
+  const save = async () => { if (!validate()) return; const dbData = { ten_kho: form.name, dia_chi: form.location || '', suc_chua: +form.capacity, so_khu_vuc: +form.zones, loai_kho: form.type || 'Kho thường', nhiet_do: form.temperature || '', quan_ly: form.manager, so_dien_thoai: form.phone || '', trang_thai: form.status || 'active' }; const { error } = await supabase.from('warehouses').update(dbData).eq('id', sel.id); if (error) { showT("Lỗi cập nhật kho: " + error.message, "error"); return; } setWhs(p => p.map(x => x.id === sel.id ? { ...x, ...form, capacity:+form.capacity, zones:+form.zones } : x)); showT(`✅ Đã cập nhật kho "${form.name}"`); logActivity("✏️", `Cập nhật thông tin kho: ${form.name}`); setModal(null); };
 
   const whProds = wid => prods.filter(p => p.wid === wid);
   const usedQ   = wid => whProds(wid).reduce((s, p) => s + p.stock, 0);
@@ -776,7 +771,7 @@ function WarehousesPage({ whs, setWhs, prods, showT }) {
               ...items.map(p => (
                 <tr key={p.id}>
                   <td><span className="mn" style={{ fontSize:12, color:"var(--t2)" }}>{p.sku}</span></td>
-                  <td><div style={{ display:"flex", alignItems:"center", gap:7 }}><span style={{ fontSize:18 }}>{p.img}</span><span style={{ fontWeight:600, fontSize:13 }}>{p.name}</span></div></td>
+                  <td><span style={{ fontWeight:600, fontSize:13 }}>{p.name}</span></td>
                   <td><span className="bdg bb">{p.category}</span></td>
                   <td><span className="bdg bc">{p.loc || "—"}</span></td>
                   <td style={{ fontWeight:600, fontSize:13 }}>{fmtM(p.buyPrice)}</td>
@@ -875,7 +870,7 @@ function OrderFormModal({ type, mode, order, prods, setProds, whs, supps, users,
       stock: 0,
       wid: form.wid,
       status: "out",
-      img: "📦",
+      img: "",
       loc: ""
     };
 
@@ -892,7 +887,14 @@ function OrderFormModal({ type, mode, order, prods, setProds, whs, supps, users,
     setShowQuick(false);
   };
 
-  const addItem = () => { const f = isImp ? prods[0] : whProds.filter(p => p.stock > 0)[0]; if (!f) return; setForm(p => ({ ...p, items:[...p.items, { pid:f.id, pname:f.name, qty:1, price:isImp ? f.buyPrice : f.sellPrice }] })); };
+  const addItem = () => {
+    const f = isImp ? prods[0] : (whProds[0] || prods[0]);
+    if (!f) {
+      showT("Không có sản phẩm nào để thêm!", "warn");
+      return;
+    }
+    setForm(p => ({ ...p, items:[...p.items, { pid:f.id, pname:f.name, qty:1, price:isImp ? f.buyPrice : f.sellPrice }] }));
+  };
   const upItem  = (idx, field, val) => setForm(p => { const items = [...p.items]; items[idx] = { ...items[idx], [field]:field === "qty" || field === "price" ? +val : val }; if (field === "pid") { const pr = prods.find(x => x.id === val); if (pr) { items[idx].pname = pr.name; items[idx].price = isImp ? pr.buyPrice : pr.sellPrice; } } return { ...p, items }; });
   const rmItem  = idx => setForm(p => ({ ...p, items:p.items.filter((_, i) => i !== idx) }));
   const validate = () => { const e = {}; if (isImp && !form.sid) e.sid = "Chọn nhà CC"; if (!isImp && !form.customer?.trim()) e.customer = "Bắt buộc"; if (form.items.length === 0) e.items = "Cần ít nhất 1 sản phẩm"; setErrs(e); return !Object.keys(e).length; };
@@ -956,7 +958,7 @@ function OrderFormModal({ type, mode, order, prods, setProds, whs, supps, users,
                     <tr key={idx} style={{ borderTop:"1px solid var(--bd)" }}>
                       <td style={{ padding:"7px 11px" }}>
                         <select className="inp" style={{ padding:"4px 7px", fontSize:12 }} value={it.pid} onChange={e => upItem(idx, "pid", e.target.value)}>
-                          {(isImp ? prods : whProds.filter(p => p.stock > 0)).map(p => <option key={p.id} value={p.id}>{p.name} (tồn: {p.stock})</option>)}
+                          {(isImp ? prods : (whProds.length ? whProds : prods)).map(p => <option key={p.id} value={p.id}>{p.name} (tồn: {p.stock})</option>)}
                         </select>
                       </td>
                       <td style={{ padding:"7px 11px", textAlign:"right" }}>
@@ -1033,7 +1035,7 @@ const IMP_KPI = [
   { k:"cancelled",  l:"Đã hủy",      c:"#EF4444", I:XCircle      },
 ];
 
-function ImportsPage({ imps, setImps, prods, setProds, whs, supps, users, showT }) {
+function ImportsPage({ imps, setImps, prods, setProds, whs, supps, users, showT, logActivity }) {
   const [kpi, setKpi]     = useState(null); const [modal, setModal] = useState(null); const [sel, setSel] = useState(null); const [srch, setSrch] = useState("");
   const cnt = k => k === "all" ? imps.length : imps.filter(o => o.status === k).length;
   const filtered = useMemo(() => imps.filter(o => { const q = srch.toLowerCase(); return (!q || o.id.toLowerCase().includes(q) || (o.sname || "").toLowerCase().includes(q)) && (!kpi || kpi === "all" || o.status === kpi); }), [imps, kpi, srch]);
@@ -1041,11 +1043,11 @@ function ImportsPage({ imps, setImps, prods, setProds, whs, supps, users, showT 
   const applyDelta = (items, delta) => setProds(p => p.map(prod => { const it = items.find(i => i.pid === prod.id); if (!it) return prod; const ns = Math.max(0, prod.stock + delta * it.qty); return { ...prod, stock:ns, status:sSt(ns), upd:today() }; }));
   const handleSave = (fd) => {
     const wasDone = sel?.status === "completed"; const nowDone = fd.status === "completed";
-    if (modal === "add") { const id = genId("PN", imps); if (nowDone) applyDelta(fd.items, 1); setImps(p => [{ id, ...fd }, ...p]); showT(`✅ Tạo phiếu ${id}${nowDone ? " · Đã cộng tồn kho" : ""}`); }
-    else { if (!wasDone && nowDone) applyDelta(fd.items, 1); if (wasDone && !nowDone) applyDelta(sel.items, -1); setImps(p => p.map(o => o.id === sel.id ? { ...o, ...fd } : o)); showT(`✅ Đã cập nhật ${sel.id}`); }
+    if (modal === "add") { const id = genId("PN", imps); if (nowDone) applyDelta(fd.items, 1); setImps(p => [{ id, ...fd }, ...p]); showT(`✅ Tạo phiếu ${id}${nowDone ? " · Đã cộng tồn kho" : ""}`); logActivity("📥", `Tạo phiếu nhập kho: ${id} — Tổng tiền: ${fmtM(fd.total || orderTotal(fd.items))}`); }
+    else { if (!wasDone && nowDone) applyDelta(fd.items, 1); if (wasDone && !nowDone) applyDelta(sel.items, -1); setImps(p => p.map(o => o.id === sel.id ? { ...o, ...fd } : o)); showT(`✅ Đã cập nhật ${sel.id}`); logActivity("✏️", `Cập nhật phiếu nhập kho: ${sel.id}`); }
     setModal(null); setSel(null);
   };
-  const handleDel = () => { if (sel.status === "completed") applyDelta(sel.items, -1); setImps(p => p.filter(o => o.id !== sel.id)); showT(`🗑️ Đã xóa ${sel.id}`, "error"); setModal(null); setSel(null); };
+  const handleDel = () => { if (sel.status === "completed") applyDelta(sel.items, -1); setImps(p => p.filter(o => o.id !== sel.id)); showT(`🗑️ Đã xóa ${sel.id}`, "error"); logActivity("🗑️", `Xóa phiếu nhập kho: ${sel.id}`); setModal(null); setSel(null); };
   const aKpi = IMP_KPI.find(k => k.k === kpi);
 
   return (
@@ -1116,7 +1118,7 @@ const EXP_KPI = [
   { k:"cancelled",  l:"Đã hủy",     c:"#EF4444", I:PackageX     },
 ];
 
-function ExportsPage({ exps, setExps, prods, setProds, whs, users, showT }) {
+function ExportsPage({ exps, setExps, prods, setProds, whs, users, showT, logActivity }) {
   const [kpi, setKpi]     = useState(null); const [modal, setModal] = useState(null); const [sel, setSel] = useState(null); const [srch, setSrch] = useState("");
   const cnt = k => k === "all" ? exps.length : exps.filter(o => o.status === k).length;
   const filtered = useMemo(() => exps.filter(o => { const q = srch.toLowerCase(); return (!q || o.id.toLowerCase().includes(q) || (o.customer || "").toLowerCase().includes(q)) && (!kpi || kpi === "all" || o.status === kpi); }), [exps, kpi, srch]);
@@ -1124,11 +1126,11 @@ function ExportsPage({ exps, setExps, prods, setProds, whs, users, showT }) {
   const applyDelta = (items, delta) => setProds(p => p.map(prod => { const it = items.find(i => i.pid === prod.id); if (!it) return prod; const ns = Math.max(0, prod.stock + delta * it.qty); return { ...prod, stock:ns, status:sSt(ns), upd:today() }; }));
   const handleSave = (fd) => {
     const wasDone = sel?.status === "completed"; const nowDone = fd.status === "completed";
-    if (modal === "add") { const id = genId("PX", exps); if (nowDone) applyDelta(fd.items, -1); setExps(p => [{ id, ...fd }, ...p]); showT(`✅ Tạo phiếu ${id}${nowDone ? " · Đã trừ tồn kho" : ""}`); }
-    else { if (!wasDone && nowDone) applyDelta(fd.items, -1); if (wasDone && !nowDone) applyDelta(sel.items, 1); setExps(p => p.map(o => o.id === sel.id ? { ...o, ...fd } : o)); showT(`✅ Đã cập nhật ${sel.id}`); }
+    if (modal === "add") { const id = genId("PX", exps); if (nowDone) applyDelta(fd.items, -1); setExps(p => [{ id, ...fd }, ...p]); showT(`✅ Tạo phiếu ${id}${nowDone ? " · Đã trừ tồn kho" : ""}`); logActivity("📤", `Tạo phiếu xuất kho: ${id} — Tổng tiền: ${fmtM(fd.total || orderTotal(fd.items))}`); }
+    else { if (!wasDone && nowDone) applyDelta(fd.items, -1); if (wasDone && !nowDone) applyDelta(sel.items, 1); setExps(p => p.map(o => o.id === sel.id ? { ...o, ...fd } : o)); showT(`✅ Đã cập nhật ${sel.id}`); logActivity("✏️", `Cập nhật phiếu xuất kho: ${sel.id}`); }
     setModal(null); setSel(null);
   };
-  const handleDel = () => { if (sel.status === "completed") applyDelta(sel.items, 1); setExps(p => p.filter(o => o.id !== sel.id)); showT(`🗑️ Đã xóa ${sel.id}`, "error"); setModal(null); setSel(null); };
+  const handleDel = () => { if (sel.status === "completed") applyDelta(sel.items, 1); setExps(p => p.filter(o => o.id !== sel.id)); showT(`🗑️ Đã xóa ${sel.id}`, "error"); logActivity("🗑️", `Xóa phiếu xuất kho: ${sel.id}`); setModal(null); setSel(null); };
   const aKpi = EXP_KPI.find(k => k.k === kpi);
 
   return (
@@ -1193,7 +1195,7 @@ function ExportsPage({ exps, setExps, prods, setProds, whs, users, showT }) {
    SUPPLIERS PAGE
 ═══════════════════════════════════════════════════════════ */
 const ESUP = { name:"", code:"", email:"", phone:"", address:"", contact:"", rating:5, status:"active", debt:0, orders:0 };
-function SuppliersPage({ supps, setSupps, showT }) {
+function SuppliersPage({ supps, setSupps, showT, logActivity }) {
   const [modal, setModal] = useState(null); const [form, setForm] = useState(ESUP); const [sel, setSel] = useState(null); const [errs, setErrs] = useState({});
   const validate = () => { const e = {}; if (!form.name?.trim()) e.name = "Bắt buộc"; if (!form.code?.trim()) e.code = "Bắt buộc"; setErrs(e); return !Object.keys(e).length; };
   const save = async () => {
@@ -1210,15 +1212,17 @@ function SuppliersPage({ supps, setSupps, showT }) {
       const newSup = { ...form, id: data.id };
       setSupps(p => [newSup, ...p]);
       showT(`✅ Đã thêm "${form.name}"`);
+      logActivity("🚚", `Thêm nhà cung cấp mới: ${form.name} (${form.code})`);
     } else {
       const { error } = await supabase.from('partners').update(dbData).eq('id', sel.id);
       if (error) { showT("Lỗi: " + error.message, "error"); return; }
       setSupps(p => p.map(s => s.id === sel.id ? { ...s, ...form } : s));
       showT(`✅ Đã cập nhật "${form.name}"`);
+      logActivity("✏️", `Cập nhật thông tin nhà cung cấp: ${form.name}`);
     }
     setModal(null); setSel(null);
   };
-  const del = () => { setSupps(p => p.filter(s => s.id !== sel.id)); showT(`🗑️ Đã xóa "${sel.name}"`, "error"); setModal(null); setSel(null); };
+  const del = () => { setSupps(p => p.filter(s => s.id !== sel.id)); showT(`🗑️ Đã xóa "${sel.name}"`, "error"); logActivity("🗑️", `Xóa nhà cung cấp: ${sel.name}`); setModal(null); setSel(null); };
 
   return (
     <div className="af">
@@ -1233,7 +1237,6 @@ function SuppliersPage({ supps, setSupps, showT }) {
             <div style={{ display:"flex", alignItems:"flex-start", gap:11, marginBottom:12 }}>
               <div className="av" style={{ width:44, height:44, fontSize:13, borderRadius:12, flexShrink:0 }}>{s.code ? s.code.slice(0, 2) : "CC"}</div>
               <div style={{ flex:1 }}><p style={{ fontWeight:700, fontSize:14 }}>{s.name}</p><p style={{ fontSize:11, color:"var(--t3)", marginTop:1 }}>{s.code}</p><div style={{ marginTop:4 }}>{Array.from({ length:5 }).map((_, i) => <span key={i} style={{ fontSize:12, color:i < s.rating ? "#F59E0B" : "var(--t3)" }}>★</span>)}</div></div>
-              <Bdg s={s.status} />
             </div>
             {[{ I:Mail, v:s.email }, { I:Phone, v:s.phone }, { I:MapPin, v:s.address }, { I:User, v:s.contact }].map(({ I, v }) => (
               <div key={v} style={{ display:"flex", alignItems:"center", gap:7, fontSize:12, color:"var(--t2)", marginBottom:4 }}><I size={11} style={{ flexShrink:0, color:"var(--t3)" }} />{v}</div>
@@ -1264,7 +1267,7 @@ function SuppliersPage({ supps, setSupps, showT }) {
 
 const EU0 = { name:"", username:"", email:"", phone:"", dept:"", position:"", role:"Staff", status:"active", password:"" };
 
-function UsersPage({ users, setUsers, showT, loginHistory }) {
+function UsersPage({ users, setUsers, showT, loginHistory, logActivity }) {
   const [kf, setKf]       = useState(null); const [srch, setSrch] = useState(""); const [rf, setRf] = useState("all");
   const [modal, setModal] = useState(null); const [sel, setSel] = useState(null); const [form, setForm] = useState(EU0); const [errs, setErrs] = useState({});
   const KS = [
@@ -1276,9 +1279,9 @@ function UsersPage({ users, setUsers, showT, loginHistory }) {
   const fil = useMemo(() => users.filter(u => { const q = srch.toLowerCase(); return (!q || u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q) || u.username.toLowerCase().includes(q)) && (rf === "all" || u.role === rf) && (!kf || kf === "all" || (kf === "active" ? u.status === "active" : kf === "inactive" ? u.status === "inactive" : u.role === kf)); }), [users, srch, rf, kf]);
   const close    = () => { setModal(null); setSel(null); };
   const validate = () => { const e = {}; if (!form.name.trim()) e.name = "Bắt buộc"; if (!form.email.includes("@")) e.email = "Email không hợp lệ"; if (modal === "add" && form.password.length < 6) e.password = "Tối thiểu 6 ký tự"; setErrs(e); return !Object.keys(e).length; };
-  const save = () => { if (!validate()) return; if (modal === "add") { const id = genId("U", users); const ini = form.name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase(); setUsers(p => [{ id, avatar:ini, ...form, lastLogin:"Chưa đăng nhập" }, ...p]); showT(`✅ Đã thêm "${form.name}"`); } else { setUsers(p => p.map(u => u.id === sel.id ? { ...u, ...form } : u)); showT(`✅ Đã cập nhật "${form.name}"`); } close(); };
-  const del  = () => { setUsers(p => p.filter(u => u.id !== sel.id)); showT(`🗑️ Đã xóa "${sel.name}"`, "error"); close(); };
-  const tog  = u => { const ns = u.status === "active" ? "inactive" : "active"; setUsers(p => p.map(x => x.id === u.id ? { ...x, status:ns } : x)); showT(ns === "inactive" ? `🔒 Đã khóa "${u.name}"` : `🔓 Đã mở khóa "${u.name}"`, ns === "inactive" ? "warn" : "success"); };
+  const save = () => { if (!validate()) return; if (modal === "add") { const id = genId("U", users); const ini = form.name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase(); setUsers(p => [{ id, avatar:ini, ...form, lastLogin:"Chưa đăng nhập" }, ...p]); showT(`✅ Đã thêm "${form.name}"`); logActivity("👤", `Thêm người dùng mới: ${form.name} (@${form.username})`); } else { setUsers(p => p.map(u => u.id === sel.id ? { ...u, ...form } : u)); showT(`✅ Đã cập nhật "${form.name}"`); logActivity("✏️", `Cập nhật thông tin người dùng: ${form.name}`); } close(); };
+  const del  = () => { setUsers(p => p.filter(u => u.id !== sel.id)); showT(`🗑️ Đã xóa "${sel.name}"`, "error"); logActivity("🗑️", `Xóa tài khoản người dùng: ${sel.name}`); close(); };
+  const tog  = u => { const ns = u.status === "active" ? "inactive" : "active"; setUsers(p => p.map(x => x.id === u.id ? { ...x, status:ns } : x)); showT(ns === "inactive" ? `🔒 Đã khóa "${u.name}"` : `🔓 Đã mở khóa "${u.name}"`, ns === "inactive" ? "warn" : "success"); logActivity(ns === "inactive" ? "🔒" : "🔓", `${ns === "inactive" ? "Khóa" : "Mở khóa"} tài khoản: ${u.name}`); };
 
   return (
     <div className="af">
@@ -1420,7 +1423,7 @@ function UsersPage({ users, setUsers, showT, loginHistory }) {
   );
 }
 
-function ReportsPage({ prods, imps, exps, dark }) {
+function ReportsPage({ prods, imps, exps, dark, logActivity }) {
   const tc = dark ? "#94A3B8" : "#64748B"; const gc = dark ? "rgba(148,163,184,.06)" : "rgba(0,0,0,.05)";
 
   const dynamicPie = useMemo(() => {
@@ -1505,6 +1508,7 @@ function ReportsPage({ prods, imps, exps, dark }) {
     })));
     XLSX.utils.book_append_sheet(wb, ws, "TonKho");
     XLSX.writeFile(wb, "BaoCaoTonKho.xlsx");
+    logActivity("📊", "Xuất báo cáo tồn kho ra file Excel");
   };
   return (
     <div className="af">
@@ -1521,7 +1525,7 @@ function ReportsPage({ prods, imps, exps, dark }) {
         <table className="dt"><thead><tr><th>#</th><th>Sản phẩm</th><th>Danh mục</th><th>Tồn kho</th><th>Giá trị tồn</th><th>TT</th></tr></thead>
         <tbody>{[...prods].sort((a, b) => b.stock - a.stock).slice(0, 6).map((p, i) => (
           <tr key={p.id}><td><div style={{ width:25, height:25, borderRadius:"50%", background:i < 3 ? ["#F59E0B","#94A3B8","#CD7C2E"][i] : "var(--b3)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:800, color:i < 3 ? "#fff" : "var(--t2)" }}>{i + 1}</div></td>
-          <td><div style={{ display:"flex", alignItems:"center", gap:7 }}><span style={{ fontSize:17 }}>{p.img}</span><span style={{ fontWeight:600, fontSize:13 }}>{p.name}</span></div></td>
+          <td><span style={{ fontWeight:600, fontSize:13 }}>{p.name}</span></td>
           <td><span className="bdg bb">{p.category}</span></td>
           <td><span style={{ fontWeight:700, fontSize:14 }}>{p.stock}</span></td>
           <td style={{ fontWeight:700, color:"#14B8A6" }}>{fmtM(p.stock * p.buyPrice)}</td>
@@ -1541,6 +1545,30 @@ export default function App() {
   const [col,   setCol]   = useState(false);
   const [sbH,   setSbH]   = useState(false);
   const [toast, setToast] = useState(null);
+  const [activities, setActivities] = useState([]);
+
+  const logActivity = async (icon, content) => {
+    const actor = adminProfile.email || "Admin";
+    const now = new Date();
+    const timeStr = now.toLocaleString("vi-VN").replace(",", "");
+    const newAct = { ic: icon, t: content, s: `${actor} · ${timeStr}` };
+    
+    setActivities(prev => {
+      const updated = [newAct, ...prev].slice(0, 50);
+      localStorage.setItem("wms_activities", JSON.stringify(updated));
+      return updated;
+    });
+
+    try {
+      await supabase.from('activity_log').insert({
+        icon,
+        content,
+        actor
+      });
+    } catch (e) {
+      console.warn("Failed to write log to Supabase", e);
+    }
+  };
 
   /* Shared mutable state — all modules read & write here */
   const [prods, setProds] = useState([]);
@@ -1566,6 +1594,7 @@ export default function App() {
   const saveAdminProfile = (data) => {
     setAdminProfile(data);
     localStorage.setItem("wms_admin_profile", JSON.stringify(data));
+    logActivity("⚙️", "Cập nhật thông tin cá nhân của Admin");
   };
 
   useEffect(() => {
@@ -1840,6 +1869,39 @@ export default function App() {
         setExps(parsedExps);
       }
 
+      // Fetch activity logs
+      try {
+        const { data: acts, error: actsErr } = await supabase
+          .from('activity_log')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(50);
+        if (!actsErr && acts && acts.length > 0) {
+          setActivities(acts.map(a => ({
+            ic: a.icon || "📝",
+            t: a.content,
+            s: `${a.actor} · ${new Date(a.created_at).toLocaleString("vi-VN")}`
+          })));
+        } else {
+          throw new Error("No logs found");
+        }
+      } catch (e) {
+        const local = localStorage.getItem("wms_activities");
+        if (local) {
+          setActivities(JSON.parse(local));
+        } else {
+          const defaultActs = [
+            { ic: "📥", t: "Nhập 10 Laptop Dell XPS 13 — PN001", s: "Nguyễn Thị Lan · 08:30" },
+            { ic: "📤", t: "Xuất 3 Laptop Dell XPS 13 — PX001", s: "Trần Minh Khoa · 09:15" },
+            { ic: "⚠️", t: "Cảnh báo: Màn hình LG còn 3 cái", s: "Hệ thống · 11:30" },
+            { ic: "➕", t: "Thêm SP mới: Router WiFi 6 ASUS", s: "Admin · 10:02" },
+            { ic: "✏️", t: "Cập nhật kho Kho A - sức chứa 500", s: "Admin · 12:00" }
+          ];
+          setActivities(defaultActs);
+          localStorage.setItem("wms_activities", JSON.stringify(defaultActs));
+        }
+      }
+
       // 5. Fetch goods and calculate real stock levels dynamically
       const { data: prodData } = await supabase.from('goods').select('*');
       if (prodData) setProds(prodData.map(p => {
@@ -1874,7 +1936,7 @@ export default function App() {
   const showT = (msg, type = "success") => { setToast({ msg, type }); setTimeout(() => setToast(null), 3500); };
   const nc    = prods.filter(p => ["low","critical","out"].includes(p.status)).length;
   const ml    = sbH ? 0 : (col ? 68 : 256);
-  const props = { prods, setProds, whs, setWhs, imps, setImps, exps, setExps, users, setUsers, supps, setSupps, showT, dark, loginHistory };
+  const props = { prods, setProds, whs, setWhs, imps, setImps, exps, setExps, users, setUsers, supps, setSupps, showT, dark, loginHistory, logActivity };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -1891,13 +1953,67 @@ export default function App() {
       case "users":      return <UsersPage {...props} />;
       case "reports":    return <ReportsPage {...props} />;
       case "activity":   return (
-        <div className="af"><div className="ph"><div className="pt">Nhật ký hoạt động</div></div>
-        <div className="card">{[{ ic:"📥",t:"Nhập 10 Laptop Dell XPS 13 — PN001",s:"Nguyễn Thị Lan · 08:30" },{ ic:"📤",t:"Xuất 3 Laptop Dell XPS 13 — PX001",s:"Trần Minh Khoa · 09:15" },{ ic:"⚠️",t:"Cảnh báo: Màn hình LG còn 3 cái",s:"Hệ thống · 11:30" },{ ic:"➕",t:"Thêm SP mới: Router WiFi 6 ASUS",s:"Admin · 10:02" },{ ic:"✏️",t:"Cập nhật kho Kho A - sức chứa 500",s:"Admin · 12:00" }].map((a,i) => (
-          <div key={i} style={{ display:"flex", gap:13, padding:"13px 0", borderBottom:i < 4 ? "1px solid var(--bd)" : "none" }}>
-            <div style={{ width:34, height:34, borderRadius:"50%", background:"rgba(37,99,235,.1)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, flexShrink:0 }}>{a.ic}</div>
-            <div><p style={{ fontSize:13, fontWeight:600 }}>{a.t}</p><p style={{ fontSize:11, color:"var(--t3)", marginTop:2 }}>{a.s}</p></div>
+        <div className="af">
+          <div className="ph">
+            <div>
+              <div className="pt">Nhật ký hoạt động</div>
+              <div className="ps">Ghi nhận các hoạt động tương tác của Admin trong hệ thống</div>
+            </div>
+            <button className="btn btnS" onClick={() => {
+              if (window.confirm("Bạn có muốn xóa nhật ký hoạt động trên trình duyệt?")) {
+                localStorage.removeItem("wms_activities");
+                setActivities([]);
+                showT("🧹 Đã dọn dẹp nhật ký");
+              }
+            }}>
+              🧹 Xóa nhật ký local
+            </button>
           </div>
-        ))}</div></div>
+          <div className="card" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {activities.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "40px", color: "var(--t3)" }}>
+                📭 Chưa có hoạt động nào được ghi nhận.
+              </div>
+            ) : (
+              activities.map((a, i) => (
+                <div key={i} className="as" style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 15,
+                  padding: "14px 16px",
+                  borderRadius: 12,
+                  background: "var(--b2)",
+                  border: "1px solid var(--bd)",
+                  transition: "transform 0.15s",
+                  animation: "fadeUp 0.3s ease both"
+                }}>
+                  <div style={{
+                    width: 42,
+                    height: 42,
+                    borderRadius: "50%",
+                    background: "var(--b1)",
+                    border: "1px solid var(--bd)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 20,
+                    flexShrink: 0
+                  }}>
+                    {a.ic || "📝"}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <p style={{ fontSize: 13.5, fontWeight: 600, color: "var(--t1)" }}>{a.t}</p>
+                    <p style={{ fontSize: 11, color: "var(--t3)", marginTop: 3, display: "flex", alignItems: "center", gap: 4 }}>
+                      <User size={10} /> {a.s.split(" · ")[0]}
+                      <span style={{ color: "var(--bd2)" }}>|</span>
+                      <Clock size={10} /> {a.s.split(" · ")[1]}
+                    </p>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
       );
       case "settings": return (
         <div className="af"><div className="ph"><div className="pt">Cài đặt hệ thống</div></div>

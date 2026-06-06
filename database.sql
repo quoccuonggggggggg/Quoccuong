@@ -60,3 +60,16 @@ CREATE POLICY "Enable read access for authenticated users on transactions" ON pu
 CREATE POLICY "Enable insert access for authenticated users on transactions" ON public.transactions FOR INSERT TO authenticated WITH CHECK (true);
 CREATE POLICY "Enable update access for authenticated users on transactions" ON public.transactions FOR UPDATE TO authenticated USING (true);
 CREATE POLICY "Enable delete access for authenticated users on transactions" ON public.transactions FOR DELETE TO authenticated USING (true);
+
+-- Create activity_log table
+CREATE TABLE IF NOT EXISTS public.activity_log (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    icon VARCHAR(10),
+    content TEXT NOT NULL,
+    actor VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+ALTER TABLE public.activity_log ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Enable read access for public on activity_log" ON public.activity_log FOR SELECT USING (true);
+CREATE POLICY "Enable insert access for public on activity_log" ON public.activity_log FOR INSERT WITH CHECK (true);

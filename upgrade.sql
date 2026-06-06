@@ -136,3 +136,16 @@ CREATE TABLE IF NOT EXISTS public.login_history (
 ALTER TABLE public.login_history ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Cho phép xem lịch sử đăng nhập" ON public.login_history FOR SELECT USING (true);
 CREATE POLICY "Cho phép thêm lịch sử đăng nhập" ON public.login_history FOR INSERT WITH CHECK (true);
+
+-- 9. Bảng Nhật ký hoạt động (Activity Log)
+CREATE TABLE IF NOT EXISTS public.activity_log (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    icon VARCHAR(10),
+    content TEXT NOT NULL,
+    actor VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+ALTER TABLE public.activity_log ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Cho phép xem nhật ký hoạt động" ON public.activity_log FOR SELECT USING (true);
+CREATE POLICY "Cho phép thêm nhật ký hoạt động" ON public.activity_log FOR INSERT WITH CHECK (true);

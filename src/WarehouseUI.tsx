@@ -1342,7 +1342,17 @@ function SuppliersPage({ supps, setSupps, showT, logActivity }) {
     }
     setModal(null); setSel(null);
   };
-  const del = () => { setSupps(p => p.filter(s => s.id !== sel.id)); showT(`🗑️ Đã xóa "${sel.name}"`, "error"); logActivity("🗑️", `Xóa nhà cung cấp: ${sel.name}`); setModal(null); setSel(null); };
+  const del = async () => {
+    if (sel.id) {
+      const { error } = await supabase.from('partners').delete().eq('id', sel.id);
+      if (error) { showT("Lỗi xóa nhà cung cấp: " + error.message, "error"); return; }
+    }
+    setSupps(p => p.filter(s => s.id !== sel.id));
+    showT(`🗑️ Đã xóa "${sel.name}"`, "error");
+    logActivity("🗑️", `Xóa nhà cung cấp: ${sel.name}`);
+    setModal(null);
+    setSel(null);
+  };
 
   return (
     <div className="af">

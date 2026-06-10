@@ -280,6 +280,14 @@ function Sidebar({ cur, onNav, col, onCol, sbH, onLogout, adminProfile }) {
         { sec: "QUẢN LÝ KHO", items: [ { id: "exports", l: "Xuất kho", I: ArrowUpFromLine } ] }
       ];
     }
+    if (role === 'warehouse_manager') {
+      return [
+        { sec: "QUẢN LÝ KHO", items: [
+          { id: "warehouses", l: "Kho hàng", I: Warehouse },
+          { id: "products",   l: "Sản phẩm",  I: Package }
+        ] }
+      ];
+    }
     return MENU;
   }, [role]);
 
@@ -289,7 +297,7 @@ function Sidebar({ cur, onNav, col, onCol, sbH, onLogout, adminProfile }) {
         <div className="logo-ic"><Boxes size={20} color="#fff" /></div>
         {!col && <div><div className="logo-t">WMS Pro</div><div className="logo-s">Warehouse Management</div></div>}
       </div>
-      {!col && <div className="sb-user"><div className="av" style={{ width:34, height:34 }}>{initials}</div><div><div style={{ fontSize:13, fontWeight:600 }}>{adminProfile.name}</div><div style={{ fontSize:11, color:"var(--t2)" }}>{role === 'import_staff' ? 'NV Nhập Kho' : role === 'export_staff' ? 'NV Xuất Kho' : 'Super Administrator'}</div></div></div>}
+      {!col && <div className="sb-user"><div className="av" style={{ width:34, height:34 }}>{initials}</div><div><div style={{ fontSize:13, fontWeight:600 }}>{adminProfile.name}</div><div style={{ fontSize:11, color:"var(--t2)" }}>{role === 'import_staff' ? 'NV Nhập Kho' : role === 'export_staff' ? 'NV Xuất Kho' : role === 'warehouse_manager' ? 'Quản Lý Kho' : 'Super Administrator'}</div></div></div>}
       <div className="sb-nav">
         {filteredMenu.map(s => (
           <div key={s.sec}>
@@ -1681,6 +1689,13 @@ function ReportsPage({ prods, imps, exps, dark, logActivity }) {
   );
 }
 
+const isPageAllowed = (role, page) => {
+  if (role === 'import_staff') return page === 'imports';
+  if (role === 'export_staff') return page === 'exports';
+  if (role === 'warehouse_manager') return ['warehouses', 'products'].includes(page);
+  return true;
+};
+
 /* ═══════════════════════════════════════════════════════════
    APP — root state + cross-module linkage
 ═══════════════════════════════════════════════════════════ */
@@ -1744,12 +1759,13 @@ export default function App() {
 
   useEffect(() => {
     const role = adminProfile.role;
-    if (role === 'import_staff') {
-      setPg('imports');
-    } else if (role === 'export_staff') {
-      setPg('exports');
+    if (!isPageAllowed(role, pg)) {
+      if (role === 'import_staff') setPg('imports');
+      else if (role === 'export_staff') setPg('exports');
+      else if (role === 'warehouse_manager') setPg('warehouses');
+      else setPg('dashboard');
     }
-  }, [adminProfile.role]);
+  }, [adminProfile.role, pg]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -1773,6 +1789,9 @@ export default function App() {
         } else if (emailLower.includes('xuatkho')) {
           role = 'export_staff';
           name = 'Nhân viên Xuất kho';
+        } else if (emailLower.includes('quanlykho')) {
+          role = 'warehouse_manager';
+          name = 'Quản lý Kho';
         } else {
           role = user.user_metadata?.role || 'admin';
           name = user.user_metadata?.name || user.email;
@@ -1799,9 +1818,9 @@ export default function App() {
                 username: username,
                 email: user.email,
                 phone: "",
-                role: role === 'import_staff' ? 'WarehouseStaff' : role === 'export_staff' ? 'WarehouseStaff' : 'Admin',
+                role: role === 'import_staff' ? 'WarehouseStaff' : role === 'export_staff' ? 'WarehouseStaff' : role === 'warehouse_manager' ? 'Manager' : 'Admin',
                 dept: role === 'admin' ? 'IT' : 'Kho',
-                position: role === 'import_staff' ? 'NV Nhập kho' : role === 'export_staff' ? 'NV Xuất kho' : 'Quản trị viên',
+                position: role === 'import_staff' ? 'NV Nhập kho' : role === 'export_staff' ? 'NV Xuất kho' : role === 'warehouse_manager' ? 'Quản lý Kho' : 'Quản trị viên',
                 status: "active",
                 lastLogin: nowStr,
                 avatar: initials

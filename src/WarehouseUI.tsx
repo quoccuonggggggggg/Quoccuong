@@ -268,15 +268,30 @@ function Sidebar({ cur, onNav, col, onCol, sbH, onLogout, adminProfile }) {
     .slice(0, 2)
     .toUpperCase() || "AD";
 
+  const role = adminProfile.role;
+  const filteredMenu = useMemo(() => {
+    if (role === 'import_staff') {
+      return [
+        { sec: "QUẢN LÝ KHO", items: [ { id: "imports", l: "Nhập kho", I: ArrowDownToLine } ] }
+      ];
+    }
+    if (role === 'export_staff') {
+      return [
+        { sec: "QUẢN LÝ KHO", items: [ { id: "exports", l: "Xuất kho", I: ArrowUpFromLine } ] }
+      ];
+    }
+    return MENU;
+  }, [role]);
+
   return (
     <nav className={`sb${col ? " col" : ""}${sbH ? " hide" : ""}`}>
       <div className="sb-logo">
         <div className="logo-ic"><Boxes size={20} color="#fff" /></div>
         {!col && <div><div className="logo-t">WMS Pro</div><div className="logo-s">Warehouse Management</div></div>}
       </div>
-      {!col && <div className="sb-user"><div className="av" style={{ width:34, height:34 }}>{initials}</div><div><div style={{ fontSize:13, fontWeight:600 }}>{adminProfile.name}</div><div style={{ fontSize:11, color:"var(--t2)" }}>Super Administrator</div></div></div>}
+      {!col && <div className="sb-user"><div className="av" style={{ width:34, height:34 }}>{initials}</div><div><div style={{ fontSize:13, fontWeight:600 }}>{adminProfile.name}</div><div style={{ fontSize:11, color:"var(--t2)" }}>{role === 'import_staff' ? 'NV Nhập Kho' : role === 'export_staff' ? 'NV Xuất Kho' : 'Super Administrator'}</div></div></div>}
       <div className="sb-nav">
-        {MENU.map(s => (
+        {filteredMenu.map(s => (
           <div key={s.sec}>
             {!col && <div className="ns">{s.sec}</div>}
             {col && <div style={{ height:7 }} />}
@@ -1728,6 +1743,15 @@ export default function App() {
   };
 
   useEffect(() => {
+    const role = adminProfile.role;
+    if (role === 'import_staff') {
+      setPg('imports');
+    } else if (role === 'export_staff') {
+      setPg('exports');
+    }
+  }, [adminProfile.role]);
+
+  useEffect(() => {
     const fetchData = async () => {
       // 1. Fetch current logged in user & sync to users list
       const { data: { user } } = await supabase.auth.getUser();
@@ -1740,11 +1764,26 @@ export default function App() {
       }).replace(",", "");
 
       if (user && user.email) {
-        setAdminProfile(prev => ({
-          ...prev,
-          name: user.email,
-          email: user.email
-        }));
+        const emailLower = user.email.toLowerCase();
+        let role = 'admin';
+        let name = user.email;
+        if (emailLower.includes('nhapkho')) {
+          role = 'import_staff';
+          name = 'Nhân viên Nhập kho';
+        } else if (emailLower.includes('xuatkho')) {
+          role = 'export_staff';
+          name = 'Nhân viên Xuất kho';
+        } else {
+          role = user.user_metadata?.role || 'admin';
+          name = user.user_metadata?.name || user.email;
+        }
+
+        setAdminProfile({
+          name: name,
+          email: user.email,
+          role: role,
+          dept: role === 'admin' ? 'IT' : 'Kho'
+        });
 
         setUsers(prev => {
           const emailExists = prev.some(u => u.email.toLowerCase() === user.email.toLowerCase());
@@ -1760,9 +1799,9 @@ export default function App() {
                 username: username,
                 email: user.email,
                 phone: "",
-                role: "Admin",
-                dept: "IT",
-                position: "Quản trị viên",
+                role: role === 'import_staff' ? 'WarehouseStaff' : role === 'export_staff' ? 'WarehouseStaff' : 'Admin',
+                dept: role === 'admin' ? 'IT' : 'Kho',
+                position: role === 'import_staff' ? 'NV Nhập kho' : role === 'export_staff' ? 'NV Xuất kho' : 'Quản trị viên',
                 status: "active",
                 lastLogin: nowStr,
                 avatar: initials
@@ -2193,13 +2232,13 @@ export default function App() {
                     <input className="inp" value={editAdmin.name} onChange={e => setEditAdmin(p => ({ ...p, name: e.target.value }))} />
                   </Fld>
                   <Fld label="Email *">
-                    <input className="inp" value={editAdmin.email} onChange={e => setEditAdmin(p => ({ ...p, email: e.target.value }))} />
+                    <input className="inp" value={editAdmin.email} disabled style={{ opacity: 0.6, cursor: "not-allowed" }} />
                   </Fld>
                   <Fld label="Vai trò">
-                    <input className="inp" value={editAdmin.role} onChange={e => setEditAdmin(p => ({ ...p, role: e.target.value }))} />
+                    <input className="inp" value={editAdmin.role} disabled style={{ opacity: 0.6, cursor: "not-allowed" }} />
                   </Fld>
                   <Fld label="Phòng ban">
-                    <input className="inp" value={editAdmin.dept} onChange={e => setEditAdmin(p => ({ ...p, dept: e.target.value }))} />
+                    <input className="inp" value={editAdmin.dept} disabled style={{ opacity: 0.6, cursor: "not-allowed" }} />
                   </Fld>
                   
                   <div style={{ display:"flex", gap:8, marginTop:10 }}>

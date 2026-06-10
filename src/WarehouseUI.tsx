@@ -581,6 +581,19 @@ function ProductsPage({ prods, setProds, whs, showT }) {
       const { data, error } = await supabase.from('goods').insert(dbData).select();
       if (error) { showT("Lỗi: " + error.message, "error"); return; }
       const newId = data[0].id;
+      // If stock > 0, create an initial import order in Supabase so stock is persisted
+      if (st > 0) {
+        const impCode = `PN-INIT-${Date.now()}`;
+        const { data: newOrd } = await supabase.from('orders').insert({
+          ma_phieu: impCode, loai_don: 'import',
+          partner_id: null, warehouse_id: form.wid,
+          nguoi_xu_ly: 'Nhập ban đầu', trang_thai: 'completed',
+          ngay_giao_dich: today(), ghi_chu: `Tồn kho ban đầu cho sản phẩm ${form.name}`
+        }).select().single();
+        if (newOrd) {
+          await supabase.from('order_items').insert({ order_id: newOrd.id, good_id: newId, so_luong: st, don_gia: +form.buyPrice });
+        }
+      }
       setProds(p => [{ ...form, id: newId, buyPrice:+form.buyPrice, sellPrice:+form.sellPrice, stock:st, status:sSt(st), upd:today() }, ...p]);
       showT(`✅ Đã thêm "${form.name}"`);
       logActivity("➕", `Thêm sản phẩm mới: ${form.name} (${form.sku})`);
@@ -1041,13 +1054,67 @@ function ImportsPage({ imps, setImps, prods, setProds, whs, supps, users, showT,
   const filtered = useMemo(() => imps.filter(o => { const q = srch.toLowerCase(); return (!q || o.id.toLowerCase().includes(q) || (o.sname || "").toLowerCase().includes(q)) && (!kpi || kpi === "all" || o.status === kpi); }), [imps, kpi, srch]);
 
   const applyDelta = (items, delta) => setProds(p => p.map(prod => { const it = items.find(i => i.pid === prod.id); if (!it) return prod; const ns = Math.max(0, prod.stock + delta * it.qty); return { ...prod, stock:ns, status:sSt(ns), upd:today() }; }));
-  const handleSave = (fd) => {
+  const handleSave = async (fd) => {
     const wasDone = sel?.status === "completed"; const nowDone = fd.status === "completed";
-    if (modal === "add") { const id = genId("PN", imps); if (nowDone) applyDelta(fd.items, 1); setImps(p => [{ id, ...fd }, ...p]); showT(`✅ Tạo phiếu ${id}${nowDone ? " · Đã cộng tồn kho" : ""}`); logActivity("📥", `Tạo phiếu nhập kho: ${id} — Tổng tiền: ${fmtM(fd.total || orderTotal(fd.items))}`); }
-    else { if (!wasDone && nowDone) applyDelta(fd.items, 1); if (wasDone && !nowDone) applyDelta(sel.items, -1); setImps(p => p.map(o => o.id === sel.id ? { ...o, ...fd } : o)); showT(`✅ Đã cập nhật ${sel.id}`); logActivity("✏️", `Cập nhật phiếu nhập kho: ${sel.id}`); }
+    if (modal === "add") {
+      const id = genId("PN", imps);
+      // Save to Supabase
+      const { data: newOrd, error: ordErr } = await supabase.from('orders').insert({
+        ma_phieu: id, loai_don: 'import',
+        partner_id: fd.sid || null,
+        warehouse_id: fd.wid,
+        nguoi_xu_ly: fd.receiver || '',
+        trang_thai: fd.status,
+        ngay_giao_dich: fd.date,
+        ghi_chu: fd.note || ''
+      }).select().single();
+      if (ordErr) { showT("Lỗi tạo phiếu: " + ordErr.message, "error"); return; }
+      if (fd.items.length > 0) {
+        const itemsToInsert = fd.items.map(it => ({ order_id: newOrd.id, good_id: it.pid, so_luong: it.qty, don_gia: it.price }));
+        await supabase.from('order_items').insert(itemsToInsert);
+      }
+      if (nowDone) applyDelta(fd.items, 1);
+      setImps(p => [{ id, dbId: newOrd.id, ...fd }, ...p]);
+      showT(`✅ Tạo phiếu ${id}${nowDone ? " · Đã cộng tồn kho" : ""}`);
+      logActivity("📥", `Tạo phiếu nhập kho: ${id} — Tổng tiền: ${fmtM(fd.total || orderTotal(fd.items))}`);
+    } else {
+      // Update in Supabase
+      const dbId = sel.dbId;
+      if (dbId) {
+        await supabase.from('orders').update({
+          partner_id: fd.sid || null,
+          warehouse_id: fd.wid,
+          nguoi_xu_ly: fd.receiver || '',
+          trang_thai: fd.status,
+          ngay_giao_dich: fd.date,
+          ghi_chu: fd.note || ''
+        }).eq('id', dbId);
+        // Re-insert order_items
+        await supabase.from('order_items').delete().eq('order_id', dbId);
+        if (fd.items.length > 0) {
+          const itemsToInsert = fd.items.map(it => ({ order_id: dbId, good_id: it.pid, so_luong: it.qty, don_gia: it.price }));
+          await supabase.from('order_items').insert(itemsToInsert);
+        }
+      }
+      if (!wasDone && nowDone) applyDelta(fd.items, 1);
+      if (wasDone && !nowDone) applyDelta(sel.items, -1);
+      setImps(p => p.map(o => o.id === sel.id ? { ...o, ...fd } : o));
+      showT(`✅ Đã cập nhật ${sel.id}`);
+      logActivity("✏️", `Cập nhật phiếu nhập kho: ${sel.id}`);
+    }
     setModal(null); setSel(null);
   };
-  const handleDel = () => { if (sel.status === "completed") applyDelta(sel.items, -1); setImps(p => p.filter(o => o.id !== sel.id)); showT(`🗑️ Đã xóa ${sel.id}`, "error"); logActivity("🗑️", `Xóa phiếu nhập kho: ${sel.id}`); setModal(null); setSel(null); };
+  const handleDel = async () => {
+    if (sel.dbId) {
+      const { error } = await supabase.from('orders').delete().eq('id', sel.dbId);
+      if (error) { showT("Lỗi xóa phiếu: " + error.message, "error"); return; }
+    }
+    if (sel.status === "completed") applyDelta(sel.items, -1);
+    setImps(p => p.filter(o => o.id !== sel.id));
+    showT(`🗑️ Đã xóa ${sel.id}`, "error");
+    logActivity("🗑️", `Xóa phiếu nhập kho: ${sel.id}`);
+    setModal(null); setSel(null);
+  };
   const aKpi = IMP_KPI.find(k => k.k === kpi);
 
   return (
@@ -1124,13 +1191,66 @@ function ExportsPage({ exps, setExps, prods, setProds, whs, users, showT, logAct
   const filtered = useMemo(() => exps.filter(o => { const q = srch.toLowerCase(); return (!q || o.id.toLowerCase().includes(q) || (o.customer || "").toLowerCase().includes(q)) && (!kpi || kpi === "all" || o.status === kpi); }), [exps, kpi, srch]);
 
   const applyDelta = (items, delta) => setProds(p => p.map(prod => { const it = items.find(i => i.pid === prod.id); if (!it) return prod; const ns = Math.max(0, prod.stock + delta * it.qty); return { ...prod, stock:ns, status:sSt(ns), upd:today() }; }));
-  const handleSave = (fd) => {
+  const handleSave = async (fd) => {
     const wasDone = sel?.status === "completed"; const nowDone = fd.status === "completed";
-    if (modal === "add") { const id = genId("PX", exps); if (nowDone) applyDelta(fd.items, -1); setExps(p => [{ id, ...fd }, ...p]); showT(`✅ Tạo phiếu ${id}${nowDone ? " · Đã trừ tồn kho" : ""}`); logActivity("📤", `Tạo phiếu xuất kho: ${id} — Tổng tiền: ${fmtM(fd.total || orderTotal(fd.items))}`); }
-    else { if (!wasDone && nowDone) applyDelta(fd.items, -1); if (wasDone && !nowDone) applyDelta(sel.items, 1); setExps(p => p.map(o => o.id === sel.id ? { ...o, ...fd } : o)); showT(`✅ Đã cập nhật ${sel.id}`); logActivity("✏️", `Cập nhật phiếu xuất kho: ${sel.id}`); }
+    if (modal === "add") {
+      const id = genId("PX", exps);
+      // Save to Supabase
+      const { data: newOrd, error: ordErr } = await supabase.from('orders').insert({
+        ma_phieu: id, loai_don: 'export',
+        partner_id: null,
+        warehouse_id: fd.wid,
+        nguoi_xu_ly: fd.handler || fd.customer || '',
+        trang_thai: fd.status,
+        ngay_giao_dich: fd.date,
+        ghi_chu: fd.note || ''
+      }).select().single();
+      if (ordErr) { showT("Lỗi tạo phiếu: " + ordErr.message, "error"); return; }
+      if (fd.items.length > 0) {
+        const itemsToInsert = fd.items.map(it => ({ order_id: newOrd.id, good_id: it.pid, so_luong: it.qty, don_gia: it.price }));
+        await supabase.from('order_items').insert(itemsToInsert);
+      }
+      if (nowDone) applyDelta(fd.items, -1);
+      setExps(p => [{ id, dbId: newOrd.id, ...fd }, ...p]);
+      showT(`✅ Tạo phiếu ${id}${nowDone ? " · Đã trừ tồn kho" : ""}`);
+      logActivity("📤", `Tạo phiếu xuất kho: ${id} — Tổng tiền: ${fmtM(fd.total || orderTotal(fd.items))}`);
+    } else {
+      // Update in Supabase
+      const dbId = sel.dbId;
+      if (dbId) {
+        await supabase.from('orders').update({
+          warehouse_id: fd.wid,
+          nguoi_xu_ly: fd.handler || fd.customer || '',
+          trang_thai: fd.status,
+          ngay_giao_dich: fd.date,
+          ghi_chu: fd.note || ''
+        }).eq('id', dbId);
+        // Re-insert order_items
+        await supabase.from('order_items').delete().eq('order_id', dbId);
+        if (fd.items.length > 0) {
+          const itemsToInsert = fd.items.map(it => ({ order_id: dbId, good_id: it.pid, so_luong: it.qty, don_gia: it.price }));
+          await supabase.from('order_items').insert(itemsToInsert);
+        }
+      }
+      if (!wasDone && nowDone) applyDelta(fd.items, -1);
+      if (wasDone && !nowDone) applyDelta(sel.items, 1);
+      setExps(p => p.map(o => o.id === sel.id ? { ...o, ...fd } : o));
+      showT(`✅ Đã cập nhật ${sel.id}`);
+      logActivity("✏️", `Cập nhật phiếu xuất kho: ${sel.id}`);
+    }
     setModal(null); setSel(null);
   };
-  const handleDel = () => { if (sel.status === "completed") applyDelta(sel.items, 1); setExps(p => p.filter(o => o.id !== sel.id)); showT(`🗑️ Đã xóa ${sel.id}`, "error"); logActivity("🗑️", `Xóa phiếu xuất kho: ${sel.id}`); setModal(null); setSel(null); };
+  const handleDel = async () => {
+    if (sel.dbId) {
+      const { error } = await supabase.from('orders').delete().eq('id', sel.dbId);
+      if (error) { showT("Lỗi xóa phiếu: " + error.message, "error"); return; }
+    }
+    if (sel.status === "completed") applyDelta(sel.items, 1);
+    setExps(p => p.filter(o => o.id !== sel.id));
+    showT(`🗑️ Đã xóa ${sel.id}`, "error");
+    logActivity("🗑️", `Xóa phiếu xuất kho: ${sel.id}`);
+    setModal(null); setSel(null);
+  };
   const aKpi = EXP_KPI.find(k => k.k === kpi);
 
   return (
@@ -1833,6 +1953,7 @@ export default function App() {
       if (ords) {
         const parsedImps = ords.filter(o => o.loai_don === 'import').map(o => ({
           id: o.ma_phieu,
+          dbId: o.id,
           sid: o.partner_id,
           sname: o.partners?.ten_doi_tac || "Nhà cung cấp",
           wid: o.warehouse_id,
@@ -1843,6 +1964,7 @@ export default function App() {
           note: o.ghi_chu,
           items: o.order_items.map(item => ({
             pid: item.good_id,
+            itemDbId: item.id,
             pname: item.goods?.ten_hang || "Sản phẩm",
             qty: item.so_luong,
             price: Number(item.don_gia)
@@ -1852,6 +1974,7 @@ export default function App() {
 
         const parsedExps = ords.filter(o => o.loai_don === 'export').map(o => ({
           id: o.ma_phieu,
+          dbId: o.id,
           customer: o.nguoi_xu_ly,
           wid: o.warehouse_id,
           wname: o.warehouses?.ten_kho || "Kho A",
@@ -1861,6 +1984,7 @@ export default function App() {
           note: o.ghi_chu,
           items: o.order_items.map(item => ({
             pid: item.good_id,
+            itemDbId: item.id,
             pname: item.goods?.ten_hang || "Sản phẩm",
             qty: item.so_luong,
             price: Number(item.don_gia)

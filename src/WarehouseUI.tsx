@@ -129,7 +129,7 @@ const CSS = `
 .ib{width:35px;height:35px;border-radius:9px;border:1px solid var(--bd);background:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--t2);transition:all .18s;position:relative}
 .ib:hover{background:var(--b3);color:var(--t1)}
 .ndot{position:absolute;top:5px;right:5px;width:7px;height:7px;background:#EF4444;border-radius:50%;border:2px solid var(--b1)}
-.main{display:flex;flex-direction:column;min-height:100vh;transition:margin-left .3s cubic-bezier(.4,0,.2,1)}
+.main{display:flex;flex-direction:column;min-height:100vh;transition:margin-left .3s cubic-bezier(.4,0,.2,1), width .3s cubic-bezier(.4,0,.2,1);min-width:0}
 .pc{flex:1;padding:22px}
 .card{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:20px;backdrop-filter:blur(10px)}
 .kpc{background:var(--card);border:2px solid var(--bd);border-radius:15px;padding:15px 17px;cursor:pointer;transition:all .22s cubic-bezier(.4,0,.2,1);position:relative;overflow:hidden}
@@ -1707,6 +1707,24 @@ export default function App() {
   const [toast, setToast] = useState(null);
   const [activities, setActivities] = useState([]);
 
+  useEffect(() => {
+    if (dark) {
+      document.documentElement.classList.add("dark");
+      document.documentElement.classList.remove("light");
+      document.body.classList.add("dark");
+      document.body.classList.remove("light");
+      document.body.style.backgroundColor = "#020617";
+      document.body.style.color = "#F1F5F9";
+    } else {
+      document.documentElement.classList.add("light");
+      document.documentElement.classList.remove("dark");
+      document.body.classList.add("light");
+      document.body.classList.remove("dark");
+      document.body.style.backgroundColor = "#F0F4F8";
+      document.body.style.color = "#0F172A";
+    }
+  }, [dark]);
+
   const logActivity = async (icon, content) => {
     const actor = adminProfile.email || "Admin";
     const now = new Date();
@@ -2231,7 +2249,7 @@ export default function App() {
       <Toast t={toast} close={() => setToast(null)} />
       <div className={`app${dark ? " dark" : " light"}`}>
         <Sidebar cur={pg} onNav={setPg} col={col} onCol={() => setCol(v => !v)} sbH={sbH} onLogout={handleLogout} adminProfile={adminProfile} />
-        <div className="main" style={{ marginLeft:ml }}>
+        <div className="main" style={{ marginLeft: ml, width: `calc(100% - ${ml}px)`, flex: 1 }}>
           <Topbar dark={dark} onDark={() => setDark(v => !v)} pg={pg} nc={nc} onLogout={handleLogout} onAction={setSysModal} adminProfile={adminProfile} prods={prods} onToggleSidebar={() => setSbH(v => !v)} />
           <div className="pc">{renderPage()}</div>
         </div>

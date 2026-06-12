@@ -823,7 +823,7 @@ function WarehousesPage({ whs, setWhs, prods, showT, logActivity }) {
       {/* Edit modal */}
       {modal === "edit" && sel && (
         <div className="mo" onClick={e => e.target === e.currentTarget && setModal(null)}>
-          <div className="mb as">
+          <div className="mb mb-lg as">
             <div className="mt"><div style={{ width:34, height:34, borderRadius:9, background:"linear-gradient(135deg,#2563EB,#06B6D4)", display:"flex", alignItems:"center", justifyContent:"center" }}><Edit2 size={16} color="#fff" /></div>Chỉnh sửa kho: {sel.name}<button className="btn btnS btnI" style={{ marginLeft:"auto" }} onClick={() => setModal(null)}><X size={13} /></button></div>
             <div className="g2" style={{ gap:10 }}>
               <div style={{ gridColumn:"1/-1" }}><Fld label="Tên kho" req error={errs.name}><input className="inp" value={form.name || ""} onChange={e => setForm(p => ({ ...p, name:e.target.value }))} style={{ borderColor:errs.name ? "#EF4444" : undefined }} /></Fld></div>
@@ -1399,7 +1399,7 @@ function SuppliersPage({ supps, setSupps, showT, logActivity }) {
       </div>
       {(modal === "add" || modal === "edit") && (
         <div className="mo" onClick={e => e.target === e.currentTarget && setModal(null)}>
-          <div className="mb">
+          <div className="mb mb-lg as">
             <div className="mt">{modal === "add" ? "Thêm nhà cung cấp mới" : `Sửa nhà cung cấp: ${sel?.name}`}<button className="btn btnS btnI" style={{ marginLeft:"auto" }} onClick={() => setModal(null)}><X size={13} /></button></div>
             <div className="g2" style={{ gap:10 }}>
               <Fld label="Tên nhà CC" req error={errs.name}><input className="inp" value={form.name} onChange={e=>setForm({...form,name:e.target.value})} style={{ borderColor:errs.name ? "#EF4444" : undefined }} /></Fld>
@@ -1535,7 +1535,7 @@ function UsersPage({ users, setUsers, showT, loginHistory, logActivity }) {
       </div>
       {(modal === "add" || modal === "edit") && (
         <div className="mo" onClick={e => e.target === e.currentTarget && close()}>
-          <div className="mb as">
+          <div className="mb mb-lg as">
             <div className="mt"><div style={{ width:34, height:34, borderRadius:9, background:"linear-gradient(135deg,#2563EB,#8B5CF6)", display:"flex", alignItems:"center", justifyContent:"center" }}>{modal === "add" ? <Plus size={17} color="#fff" /> : <Edit2 size={16} color="#fff" />}</div>{modal === "add" ? "Thêm người dùng mới" : `Sửa: ${sel?.name}`}<button className="btn btnS btnI" style={{ marginLeft:"auto" }} onClick={close}><X size={13} /></button></div>
             <div style={{ textAlign:"center", marginBottom:13 }}><div style={{ width:52, height:52, borderRadius:"50%", background:"linear-gradient(135deg,#2563EB,#8B5CF6)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:20, fontWeight:800, color:"#fff", margin:"0 auto 6px", boxShadow:"0 0 20px rgba(37,99,235,.35)" }}>{form.name ? form.name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase() : modal === "edit" ? sel?.avatar : "?"}</div><p style={{ fontSize:11, color:"var(--t3)" }}>Avatar tự sinh từ tên</p></div>
             <div className="g2" style={{ gap:10 }}>

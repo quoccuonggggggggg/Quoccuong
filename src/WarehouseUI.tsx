@@ -157,8 +157,8 @@ const CSS = `
 .inp::placeholder{color:var(--t3)}
 select.inp option{background:var(--b1)}
 .mo{position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(5px);z-index:200;display:flex;align-items:center;justify-content:center}
-.mb{background:var(--b1);border:1px solid var(--bd2);border-radius:20px;padding:25px;width:90%;max-width:560px;max-height:92vh;overflow-y:auto}
-.mb-lg{max-width:700px}.mb-sm{max-width:400px}
+.mb{background:var(--b1);border:1px solid var(--bd2);border-radius:20px;padding:25px;width:95%;max-width:960px;max-height:92vh;overflow-y:auto}
+.mb-lg{max-width:1300px;width:95%}.mb-sm{max-width:480px;width:90%}
 .mt{font-size:16px;font-weight:800;margin-bottom:17px;display:flex;align-items:center;gap:10px}
 .g2{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
 .g3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
@@ -937,7 +937,7 @@ function OrderFormModal({ type, mode, order, prods, setProds, whs, supps, users,
 
   return (
     <div className="mo" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="mb mb-lg as" style={{ maxWidth:700 }}>
+      <div className="mb mb-lg as">
         <div className="mt">
           <div style={{ width:34, height:34, borderRadius:9, background:isImp ? "linear-gradient(135deg,#14B8A6,#2563EB)" : "linear-gradient(135deg,#06B6D4,#8B5CF6)", display:"flex", alignItems:"center", justifyContent:"center" }}>{mode === "add" ? <Plus size={17} color="#fff" /> : <Edit2 size={16} color="#fff" />}</div>
           {mode === "add" ? (isImp ? "Tạo phiếu nhập kho" : "Tạo phiếu xuất kho") : ((isImp ? "Sửa phiếu nhập" : "Sửa phiếu xuất") + (order ? " – " + order.id : ""))}

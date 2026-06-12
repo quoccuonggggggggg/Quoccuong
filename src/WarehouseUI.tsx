@@ -188,6 +188,74 @@ select.inp option{background:var(--b1)}
 ═══════════════════════════════════════════════════════════ */
 const fmt  = n => new Intl.NumberFormat("vi-VN").format(n);
 const fmtM = n => (n >= 1e9 ? `${(n/1e9).toFixed(2)}T` : n >= 1e6 ? `${(n/1e6).toFixed(1)}M` : fmt(n)) + " ₫";
+
+const getMajorCategory = (cat) => {
+  if (!cat) return "Khác";
+  const c = cat.trim().toLowerCase();
+  
+  if (
+    c.includes("điện tử") || 
+    c.includes("âm thanh") || 
+    c.includes("mạng") || 
+    c.includes("an ninh") || 
+    c.includes("phụ kiện") || 
+    c.includes("laptop") || 
+    c.includes("loa") || 
+    c.includes("sạc") || 
+    c.includes("chuột") || 
+    c.includes("điện thoại") || 
+    c.includes("đồng hồ") || 
+    c.includes("tai nghe") || 
+    c.includes("máy tính bảng") || 
+    c.includes("camera") || 
+    c.includes("màn hình") || 
+    c.includes("bàn phím") || 
+    c.includes("switch") || 
+    c.includes("router") || 
+    c.includes("thiết bị giải trí") || 
+    c.includes("thiết bị mạng")
+  ) {
+    return "Điện tử";
+  }
+  
+  if (
+    c.includes("điện gia dụng") || 
+    c.includes("gia dụng") || 
+    c.includes("bếp") || 
+    c.includes("nướng") || 
+    c.includes("nước") || 
+    c.includes("chén") || 
+    c.includes("nồi") || 
+    c.includes("lạnh") || 
+    c.includes("hút mùi") || 
+    c.includes("điều hòa") ||
+    c.includes("bộ trà") ||
+    c === "điện"
+  ) {
+    return "Điện gia dụng";
+  }
+  
+  if (
+    c.includes("nội thất") || 
+    c.includes("sofa") || 
+    c.includes("bàn") || 
+    c.includes("ghế") || 
+    c.includes("đèn") || 
+    c.includes("tranh") || 
+    c.includes("nệm") || 
+    c.includes("kệ") || 
+    c.includes("tủ") || 
+    c.includes("thảm") || 
+    c.includes("bình hoa") || 
+    c.includes("giường") || 
+    c.includes("tượng")
+  ) {
+    return "Nội thất";
+  }
+  
+  return "Khác";
+};
+
 const today = () => new Date().toISOString().slice(0, 10);
 const genId = (p, l) => `${p}${String(l.length + 1).padStart(3, "0")}`;
 const sSt   = s => s === 0 ? "out" : s <= 5 ? "critical" : s <= 10 ? "low" : "active";
@@ -450,14 +518,21 @@ function Dashboard({ prods, whs, imps, exps, dark, logActivity }) {
 
   const dynamicPie = useMemo(() => {
     const totalVal = prods.reduce((s, p) => s + Math.max(0, p.stock) * p.buyPrice, 0) || 1;
-    const cats = [...new Set(prods.map(p => p.category))];
-    const colors = ["#2563EB", "#8B5CF6", "#06B6D4", "#14B8A6", "#F59E0B", "#EF4444", "#EC4899", "#10B981"];
-    return cats.map((c, i) => {
-      const val = prods.filter(p => p.category === c).reduce((s, p) => s + Math.max(0, p.stock) * p.buyPrice, 0);
+    const majorCategories = ["Điện tử", "Nội thất", "Điện gia dụng", "Khác"];
+    const colors = {
+      "Điện tử": "#2563EB",
+      "Nội thất": "#8B5CF6",
+      "Điện gia dụng": "#06B6D4",
+      "Khác": "#94A3B8"
+    };
+    return majorCategories.map(c => {
+      const val = prods
+        .filter(p => getMajorCategory(p.category) === c)
+        .reduce((s, p) => s + Math.max(0, p.stock) * p.buyPrice, 0);
       return {
         n: c,
         v: Math.round((val / totalVal) * 100) || 0,
-        c: colors[i % colors.length]
+        c: colors[c]
       };
     }).filter(item => item.v > 0);
   }, [prods]);
@@ -1681,19 +1756,26 @@ function UsersPage({ users, setUsers, showT, loginHistory, logActivity }) {
   );
 }
 
-function ReportsPage({ prods, imps, exps, dark, logActivity }) {
+function ReportsPage({ prods, imps, exps, dark, logActivity, whs }) {
   const tc = dark ? "#94A3B8" : "#64748B"; const gc = dark ? "rgba(148,163,184,.06)" : "rgba(0,0,0,.05)";
 
   const dynamicPie = useMemo(() => {
     const totalVal = prods.reduce((s, p) => s + Math.max(0, p.stock) * p.buyPrice, 0) || 1;
-    const cats = [...new Set(prods.map(p => p.category))];
-    const colors = ["#2563EB", "#8B5CF6", "#06B6D4", "#14B8A6", "#F59E0B", "#EF4444", "#EC4899", "#10B981"];
-    return cats.map((c, i) => {
-      const val = prods.filter(p => p.category === c).reduce((s, p) => s + Math.max(0, p.stock) * p.buyPrice, 0);
+    const majorCategories = ["Điện tử", "Nội thất", "Điện gia dụng", "Khác"];
+    const colors = {
+      "Điện tử": "#2563EB",
+      "Nội thất": "#8B5CF6",
+      "Điện gia dụng": "#06B6D4",
+      "Khác": "#94A3B8"
+    };
+    return majorCategories.map(c => {
+      const val = prods
+        .filter(p => getMajorCategory(p.category) === c)
+        .reduce((s, p) => s + Math.max(0, p.stock) * p.buyPrice, 0);
       return {
         n: c,
         v: Math.round((val / totalVal) * 100) || 0,
-        c: colors[i % colors.length]
+        c: colors[c]
       };
     }).filter(item => item.v > 0);
   }, [prods]);
@@ -1779,16 +1861,99 @@ function ReportsPage({ prods, imps, exps, dark, logActivity }) {
           <ResponsiveContainer width="100%" height={185}><PieChart><Pie data={dynamicPie} cx="50%" cy="50%" outerRadius={70} paddingAngle={3} dataKey="v">{dynamicPie.map((e, i) => <Cell key={i} fill={e.c} />)}</Pie><Tooltip content={<TT />} formatter={v => [`${v}%`, ""]} /></PieChart></ResponsiveContainer>
           {dynamicPie.map(it => <div key={it.n} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", fontSize:12, marginBottom:3 }}><div style={{ display:"flex", alignItems:"center", gap:5 }}><span style={{ width:8, height:8, borderRadius:2, background:it.c, display:"inline-block" }} /><span style={{ color:"var(--t2)" }}>{it.n}</span></div><span style={{ fontWeight:700 }}>{it.v}%</span></div>)}</div>
       </div>
-      <div className="card"><div className="st"><Award size={14} style={{ color:"#F59E0B" }} />Sản phẩm tồn kho cao nhất</div>
-        <table className="dt"><thead><tr><th>#</th><th>Sản phẩm</th><th>Danh mục</th><th>Tồn kho</th><th>Giá trị tồn</th><th>TT</th></tr></thead>
-        <tbody>{[...prods].sort((a, b) => b.stock - a.stock).slice(0, 6).map((p, i) => (
-          <tr key={p.id}><td><div style={{ width:25, height:25, borderRadius:"50%", background:i < 3 ? ["#F59E0B","#94A3B8","#CD7C2E"][i] : "var(--b3)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:800, color:i < 3 ? "#fff" : "var(--t2)" }}>{i + 1}</div></td>
-          <td><span style={{ fontWeight:600, fontSize:13 }}>{p.name}</span></td>
-          <td><span className="bdg bb">{p.category}</span></td>
-          <td><span style={{ fontWeight:700, fontSize:14 }}>{p.stock}</span></td>
-          <td style={{ fontWeight:700, color:"#14B8A6" }}>{fmtM(p.stock * p.buyPrice)}</td>
-          <td><Bdg s={p.status} /></td></tr>
-        ))}</tbody></table>
+      <div className="g3" style={{ marginTop: 14, maxWidth: "1200px" }}>
+        <div className="card">
+          <div className="st"><Warehouse size={14} style={{ color:"#06B6D4" }} />Công suất kho</div>
+          <table className="dt">
+            <thead>
+              <tr>
+                <th>Kho</th>
+                <th>Tỉ lệ sử dụng</th>
+                <th style={{ textAlign:"right" }}>Mức dùng</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[...whs].sort((a, b) => a.name.localeCompare(b.name)).map(wh => {
+                const u = prods.filter(p => p.wid === wh.id).reduce((s, p) => s + p.stock, 0);
+                const pct = Math.min(100, Math.round(u / wh.capacity * 100));
+                const col = pct > 80 ? "#EF4444" : pct > 60 ? "#F59E0B" : "#14B8A6";
+                return (
+                  <tr key={wh.id}>
+                    <td style={{ fontWeight:600 }}>{wh.name.split(" - ")[0]}</td>
+                    <td>
+                      <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                        <div className="pb" style={{ flex:1, height:5 }}><div className="pf" style={{ width:`${pct}%`, background:col }} /></div>
+                        <span style={{ fontSize:11, fontWeight:700, color:col }}>{pct}%</span>
+                      </div>
+                    </td>
+                    <td style={{ textAlign:"right", fontWeight:600, fontSize:12 }}>{fmt(u)}/{fmt(wh.capacity)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="card">
+          <div className="st"><TrendingUp size={14} style={{ color:"#14B8A6" }} />Cảnh báo tồn kho (sản phẩm còn nhiều)</div>
+          <table className="dt">
+            <thead>
+              <tr>
+                <th>Sản phẩm</th>
+                <th>Kho</th>
+                <th style={{ textAlign:"right" }}>Tồn kho</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[...prods].sort((a, b) => b.stock - a.stock).slice(0, 5).map(p => {
+                const wh = whs.find(w => w.id === p.wid);
+                return (
+                  <tr key={p.id}>
+                    <td style={{ fontWeight:600, maxWidth:120, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }} title={p.name}>{p.name}</td>
+                    <td>{wh?.name.split(" - ")[0] || "—"}</td>
+                    <td style={{ textAlign:"right", fontWeight:800, color:"#14B8A6" }}>{fmt(p.stock)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="card">
+          <div className="st"><AlertTriangle size={14} style={{ color:"#EF4444" }} />Cảnh báo hết hàng (sản phẩm sắp hết hàng và tồn thấp)</div>
+          <table className="dt">
+            <thead>
+              <tr>
+                <th>Sản phẩm</th>
+                <th>Kho</th>
+                <th style={{ textAlign:"right" }}>Tồn</th>
+                <th>TT</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[...prods]
+                .filter(p => ["low", "critical", "out"].includes(p.status))
+                .sort((a, b) => a.stock - b.stock)
+                .slice(0, 5)
+                .map(p => {
+                  const wh = whs.find(w => w.id === p.wid);
+                  return (
+                    <tr key={p.id}>
+                      <td style={{ fontWeight:600, maxWidth:100, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }} title={p.name}>{p.name}</td>
+                      <td>{wh?.name.split(" - ")[0] || "—"}</td>
+                      <td style={{ textAlign:"right", fontWeight:800, color:"#EF4444" }}>{p.stock}</td>
+                      <td><Bdg s={p.status} /></td>
+                    </tr>
+                  );
+                })}
+              {prods.filter(p => ["low", "critical", "out"].includes(p.status)).length === 0 && (
+                <tr>
+                  <td colSpan={4} style={{ textAlign:"center", padding:"10px 0", color:"var(--t3)" }}>Không có cảnh báo hết hàng</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

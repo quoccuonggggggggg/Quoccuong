@@ -571,8 +571,16 @@ const EP0 = { name:"", sku:"", category:"Điện tử", buyPrice:"", sellPrice:"
 
 function ProductsPage({ prods, setProds, whs, showT }) {
   const [srch, setSrch]   = useState(""); const [catF, setCatF] = useState("all"); const [whF, setWhF] = useState("all"); const [stF, setStF] = useState("all");
-  const [modal, setModal] = useState(null); const [sel, setSel] = useState(null); const [form, setForm] = useState(EP0); const [errs, setErrs] = useState({});
+  const [modal, setModal] = useState(null); const [sel, setSel] = useState(null);
+  const [errs, setErrs] = useState({});
   const [pg, setPg]       = useState(1); const PER = 8;
+
+  const dynamicCats = useMemo(() => {
+    const list = prods.map(p => p.category).filter(Boolean);
+    return [...new Set(list)].sort();
+  }, [prods]);
+
+  const [form, setForm] = useState(() => ({ ...EP0, category: dynamicCats[0] || "Điện tử" }));
 
   const filtered = useMemo(() => prods.filter(p => {
     const q = srch.toLowerCase();
@@ -643,7 +651,7 @@ function ProductsPage({ prods, setProds, whs, showT }) {
     <div className="af">
       <div className="ph">
         <div><div className="pt">Quản lý sản phẩm</div><div className="ps">{filtered.length} SP · tổng tồn: {prods.reduce((s, p) => s + p.stock, 0)} đv</div></div>
-        <button className="btn btnP" onClick={() => { setForm(EP0); setErrs({}); setSel(null); setModal("add"); }}><Plus size={13} />Thêm sản phẩm</button>
+        <button className="btn btnP" onClick={() => { setForm({ ...EP0, category: dynamicCats[0] || "Điện tử" }); setErrs({}); setSel(null); setModal("add"); }}><Plus size={13} />Thêm sản phẩm</button>
       </div>
       <div className="card" style={{ marginBottom:11, padding:"10px 14px" }}>
         <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }}>
@@ -652,8 +660,8 @@ function ProductsPage({ prods, setProds, whs, showT }) {
             <input value={srch} onChange={e => { setSrch(e.target.value); setPg(1); }} placeholder="Tìm tên, SKU, mã SP..." style={{ background:"none", border:"none", outline:"none", fontSize:13, color:"var(--t1)", flex:1, fontFamily:"inherit" }} />
             {srch && <button onClick={() => setSrch("")} style={{ background:"none", border:"none", cursor:"pointer", color:"var(--t3)" }}><X size={12} /></button>}
           </div>
-          <select className="inp" value={catF} onChange={e => { setCatF(e.target.value); setPg(1); }} style={{ width:"auto" }}><option value="all">Tất cả danh mục</option>{CATS.map(c => <option key={c}>{c}</option>)}</select>
-          <select className="inp" value={whF} onChange={e => { setWhF(e.target.value); setPg(1); }} style={{ width:"auto" }}><option value="all">Tất cả kho</option>{whs.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</select>
+          <select className="inp" value={catF} onChange={e => { setCatF(e.target.value); setPg(1); }} style={{ width:"auto" }}><option value="all">Tất cả danh mục</option>{dynamicCats.map(c => <option key={c} value={c}>{c}</option>)}</select>
+          <select className="inp" value={whF} onChange={e => { setWhF(e.target.value); setPg(1); }} style={{ width:"auto" }}><option value="all">Tất cả kho</option>{[...whs].sort((a, b) => a.name.localeCompare(b.name)).map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</select>
           <select className="inp" value={stF} onChange={e => { setStF(e.target.value); setPg(1); }} style={{ width:"auto" }}><option value="all">Tất cả TT</option><option value="active">Hoạt động</option><option value="low">Tồn thấp</option><option value="critical">Sắp hết hàng</option><option value="out">Hết hàng</option></select>
         </div>
       </div>
@@ -702,8 +710,13 @@ function ProductsPage({ prods, setProds, whs, showT }) {
             <div className="g2" style={{ gap:10 }}>
               <Fld label="Tên sản phẩm" req error={errs.name}><input className="inp" placeholder="Tên sản phẩm" value={form.name} onChange={e => setForm(p => ({ ...p, name:e.target.value }))} style={{ borderColor:errs.name ? "#EF4444" : undefined }} /></Fld>
               <Fld label="Mã SP (SKU)" req error={errs.sku}><input className="inp" placeholder="VD: DELL-XPS13" value={form.sku} onChange={e => setForm(p => ({ ...p, sku:e.target.value }))} style={{ borderColor:errs.sku ? "#EF4444" : undefined }} /></Fld>
-              <Fld label="Danh mục"><select className="inp" value={form.category} onChange={e => setForm(p => ({ ...p, category:e.target.value }))}>{CATS.map(c => <option key={c}>{c}</option>)}</select></Fld>
-              <Fld label="Kho chứa"><select className="inp" value={form.wid} onChange={e => setForm(p => ({ ...p, wid:e.target.value }))}>{whs.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</select></Fld>
+              <Fld label="Danh mục">
+                <input className="inp" placeholder="VD: Điện thoại" list="category-list" value={form.category} onChange={e => setForm(p => ({ ...p, category:e.target.value }))} />
+                <datalist id="category-list">
+                  {dynamicCats.map(c => <option key={c} value={c} />)}
+                </datalist>
+              </Fld>
+              <Fld label="Kho chứa"><select className="inp" value={form.wid} onChange={e => setForm(p => ({ ...p, wid:e.target.value }))}>{[...whs].sort((a, b) => a.name.localeCompare(b.name)).map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</select></Fld>
               <Fld label="Giá nhập (₫)" req error={errs.buyPrice}><input className="inp" placeholder="25000000" value={form.buyPrice} onChange={e => setForm(p => ({ ...p, buyPrice:e.target.value }))} style={{ borderColor:errs.buyPrice ? "#EF4444" : undefined }} /></Fld>
               <Fld label="Giá bán (₫)" req error={errs.sellPrice}><input className="inp" placeholder="29500000" value={form.sellPrice} onChange={e => setForm(p => ({ ...p, sellPrice:e.target.value }))} style={{ borderColor:errs.sellPrice ? "#EF4444" : undefined }} /></Fld>
               <Fld label="Tồn kho hiện tại" req error={errs.stock}><input className="inp" placeholder="0" value={form.stock} onChange={e => setForm(p => ({ ...p, stock:e.target.value }))} style={{ borderColor:errs.stock ? "#EF4444" : undefined }} /></Fld>
@@ -747,8 +760,8 @@ function WarehousesPage({ whs, setWhs, prods, showT, logActivity }) {
   return (
     <div className="af">
       <div className="ph"><div><div className="pt">Quản lý kho hàng</div><div className="ps">{whs.length} kho · {prods.length} sản phẩm</div></div></div>
-      <div className="g3" style={{ marginBottom:20 }}>
-        {whs.map(wh => { const u = usedQ(wh.id); const pct = Math.min(100, Math.round(u / wh.capacity * 100)); const col = pct > 80 ? "#EF4444" : pct > 60 ? "#F59E0B" : "#14B8A6"; return (
+      <div className="g3" style={{ marginBottom:20, maxWidth: "1200px" }}>
+        {[...whs].sort((a, b) => a.name.localeCompare(b.name)).map(wh => { const u = usedQ(wh.id); const pct = Math.min(100, Math.round(u / wh.capacity * 100)); const col = pct > 80 ? "#EF4444" : pct > 60 ? "#F59E0B" : "#14B8A6"; return (
           <div key={wh.id} className="card" style={{ position:"relative", overflow:"hidden", transition:"transform .2s,box-shadow .2s" }} onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 12px 40px rgba(37,99,235,.12)"; }} onMouseLeave={e => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = ""; }}>
             <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", marginBottom:11 }}>
               <div style={{ width:44, height:44, borderRadius:12, background:"linear-gradient(135deg,#2563EB,#06B6D4)", display:"flex", alignItems:"center", justifyContent:"center" }}><Warehouse size={22} color="#fff" /></div>
@@ -782,7 +795,7 @@ function WarehousesPage({ whs, setWhs, prods, showT, logActivity }) {
           <Package size={15} style={{ color:"#2563EB", marginRight:8, flexShrink:0 }} />
           <span style={{ fontSize:14, fontWeight:700, marginRight:13, padding:"13px 0", whiteSpace:"nowrap" }}>Sản phẩm theo kho</span>
           <div style={{ display:"flex", gap:4, overflowX:"auto", flex:1, padding:"8px 0" }}>
-            {whs.map(wh => { const cnt = whProds(wh.id).length; const isA = curWh === wh.id; return (
+            {[...whs].sort((a, b) => a.name.localeCompare(b.name)).map(wh => { const cnt = whProds(wh.id).length; const isA = curWh === wh.id; return (
               <button key={wh.id} onClick={() => setActiveWh(wh.id)} className="btn" style={{ fontSize:12, padding:"5px 12px", whiteSpace:"nowrap", background:isA ? "linear-gradient(135deg,#2563EB,#1D4ED8)" : undefined, color:isA ? "#fff" : undefined, border:isA ? "none" : "1px solid var(--bd2)" }}>
                 {wh.name.split(" - ")[0]} <span style={{ marginLeft:4, background:isA ? "rgba(255,255,255,.25)" : "var(--b3)", padding:"1px 5px", borderRadius:999, fontSize:10 }}>{cnt}</span>
               </button>
@@ -823,7 +836,7 @@ function WarehousesPage({ whs, setWhs, prods, showT, logActivity }) {
       {/* Edit modal */}
       {modal === "edit" && sel && (
         <div className="mo" onClick={e => e.target === e.currentTarget && setModal(null)}>
-          <div className="mb mb-lg as">
+          <div className="mb as">
             <div className="mt"><div style={{ width:34, height:34, borderRadius:9, background:"linear-gradient(135deg,#2563EB,#06B6D4)", display:"flex", alignItems:"center", justifyContent:"center" }}><Edit2 size={16} color="#fff" /></div>Chỉnh sửa kho: {sel.name}<button className="btn btnS btnI" style={{ marginLeft:"auto" }} onClick={() => setModal(null)}><X size={13} /></button></div>
             <div className="g2" style={{ gap:10 }}>
               <div style={{ gridColumn:"1/-1" }}><Fld label="Tên kho" req error={errs.name}><input className="inp" value={form.name || ""} onChange={e => setForm(p => ({ ...p, name:e.target.value }))} style={{ borderColor:errs.name ? "#EF4444" : undefined }} /></Fld></div>
@@ -960,7 +973,7 @@ function OrderFormModal({ type, mode, order, prods, setProds, whs, supps, users,
             </Fld>
           </>)}
           <Fld label={`Kho ${isImp ? "nhập" : "xuất"}`}>
-            <select className="inp" value={form.wid} onChange={e => { const w = whs.find(x => x.id === e.target.value); setForm(p => ({ ...p, wid:e.target.value, wname:w?.name || "", items:[] })); }}>{whs.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</select>
+            <select className="inp" value={form.wid} onChange={e => { const w = whs.find(x => x.id === e.target.value); setForm(p => ({ ...p, wid:e.target.value, wname:w?.name || "", items:[] })); }}>{[...whs].sort((a, b) => a.name.localeCompare(b.name)).map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</select>
           </Fld>
           <Fld label="Trạng thái">
             <select className="inp" value={form.status} onChange={e => setForm(p => ({ ...p, status:e.target.value }))}><option value="pending">Chờ duyệt</option><option value="processing">Đang xử lý</option><option value="completed">Hoàn thành</option><option value="cancelled">Đã hủy</option></select>
@@ -1380,7 +1393,7 @@ function SuppliersPage({ supps, setSupps, showT, logActivity }) {
   return (
     <div className="af">
       <div className="ph"><div><div className="pt">Nhà cung cấp</div><div className="ps">{supps.length} đối tác</div></div><button className="btn btnP" onClick={() => { setForm(ESUP); setErrs({}); setModal("add"); }}><Plus size={13} />Thêm nhà CC</button></div>
-      <div className="g3">
+      <div className="g3" style={{ maxWidth: "1200px" }}>
         {supps.map(s => (
           <div key={s.id} className="card" style={{ position: "relative" }}>
             <div style={{ position: "absolute", top: 10, right: 10, display: "flex", gap: 5 }}>

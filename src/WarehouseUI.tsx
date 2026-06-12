@@ -1445,9 +1445,101 @@ function UsersPage({ users, setUsers, showT, loginHistory, logActivity }) {
   const fil = useMemo(() => users.filter(u => { const q = srch.toLowerCase(); return (!q || u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q) || u.username.toLowerCase().includes(q)) && (rf === "all" || u.role === rf) && (!kf || kf === "all" || (kf === "active" ? u.status === "active" : kf === "inactive" ? u.status === "inactive" : u.role === kf)); }), [users, srch, rf, kf]);
   const close    = () => { setModal(null); setSel(null); };
   const validate = () => { const e = {}; if (!form.name.trim()) e.name = "Bắt buộc"; if (!form.email.includes("@")) e.email = "Email không hợp lệ"; if (modal === "add" && form.password.length < 6) e.password = "Tối thiểu 6 ký tự"; setErrs(e); return !Object.keys(e).length; };
-  const save = () => { if (!validate()) return; if (modal === "add") { const id = genId("U", users); const ini = form.name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase(); setUsers(p => [{ id, avatar:ini, ...form, lastLogin:"Chưa đăng nhập" }, ...p]); showT(`✅ Đã thêm "${form.name}"`); logActivity("👤", `Thêm người dùng mới: ${form.name} (@${form.username})`); } else { setUsers(p => p.map(u => u.id === sel.id ? { ...u, ...form } : u)); showT(`✅ Đã cập nhật "${form.name}"`); logActivity("✏️", `Cập nhật thông tin người dùng: ${form.name}`); } close(); };
-  const del  = () => { setUsers(p => p.filter(u => u.id !== sel.id)); showT(`🗑️ Đã xóa "${sel.name}"`, "error"); logActivity("🗑️", `Xóa tài khoản người dùng: ${sel.name}`); close(); };
-  const tog  = u => { const ns = u.status === "active" ? "inactive" : "active"; setUsers(p => p.map(x => x.id === u.id ? { ...x, status:ns } : x)); showT(ns === "inactive" ? `🔒 Đã khóa "${u.name}"` : `🔓 Đã mở khóa "${u.name}"`, ns === "inactive" ? "warn" : "success"); logActivity(ns === "inactive" ? "🔒" : "🔓", `${ns === "inactive" ? "Khóa" : "Mở khóa"} tài khoản: ${u.name}`); };
+  const save = async () => {
+    if (!validate()) return;
+    const ini = form.name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
+    const dbData = {
+      username: form.username || form.email.split("@")[0],
+      name: form.name,
+      email: form.email,
+      phone: form.phone || "",
+      dept: form.dept || "",
+      position: form.position || "",
+      role: form.role,
+      status: form.status,
+      avatar: ini,
+      last_login: "Chưa đăng nhập"
+    };
+
+    if (modal === "add") {
+      try {
+        const { data, error } = await supabase.from('profiles').insert(dbData).select().single();
+        if (error) throw error;
+        setUsers(p => [{
+          id: data.id,
+          name: data.name,
+          username: data.username,
+          email: data.email,
+          phone: data.phone,
+          dept: data.dept,
+          position: data.position,
+          role: data.role,
+          status: data.status,
+          avatar: data.avatar,
+          lastLogin: data.last_login
+        }, ...p]);
+        showT(`✅ Đã thêm "${form.name}"`);
+        logActivity("👤", `Thêm người dùng mới: ${form.name} (@${form.username})`);
+      } catch (e) {
+        console.warn("Failed to save profile to database, using local state", e);
+        const id = genId("U", users);
+        setUsers(p => [{ id, avatar: ini, ...form, lastLogin: "Chưa đăng nhập" }, ...p]);
+        showT(`✅ Đã thêm "${form.name}" (Local)`);
+      }
+    } else {
+      try {
+        const { error } = await supabase.from('profiles').update({
+          username: form.username,
+          name: form.name,
+          email: form.email,
+          phone: form.phone || "",
+          dept: form.dept || "",
+          position: form.position || "",
+          role: form.role,
+          status: form.status
+        }).eq('id', sel.id);
+        if (error) throw error;
+        setUsers(p => p.map(u => u.id === sel.id ? { ...u, ...form } : u));
+        showT(`✅ Đã cập nhật "${form.name}"`);
+        logActivity("✏️", `Cập nhật thông tin người dùng: ${form.name}`);
+      } catch (e) {
+        console.warn("Failed to update profile in database, using local state", e);
+        setUsers(p => p.map(u => u.id === sel.id ? { ...u, ...form } : u));
+        showT(`✅ Đã cập nhật "${form.name}" (Local)`);
+      }
+    }
+    close();
+  };
+
+  const del = async () => {
+    try {
+      const { error } = await supabase.from('profiles').delete().eq('id', sel.id);
+      if (error) throw error;
+      setUsers(p => p.filter(u => u.id !== sel.id));
+      showT(`🗑️ Đã xóa "${sel.name}"`, "error");
+      logActivity("🗑️", `Xóa tài khoản người dùng: ${sel.name}`);
+    } catch (e) {
+      console.warn("Failed to delete profile from database, using local state", e);
+      setUsers(p => p.filter(u => u.id !== sel.id));
+      showT(`🗑️ Đã xóa "${sel.name}" (Local)`, "error");
+    }
+    close();
+  };
+
+  const tog = async u => {
+    const ns = u.status === "active" ? "inactive" : "active";
+    try {
+      const { error } = await supabase.from('profiles').update({ status: ns }).eq('id', u.id);
+      if (error) throw error;
+      setUsers(p => p.map(x => x.id === u.id ? { ...x, status: ns } : x));
+      showT(ns === "inactive" ? `🔒 Đã khóa "${u.name}"` : `🔓 Đã mở khóa "${u.name}"`, ns === "inactive" ? "warn" : "success");
+      logActivity(ns === "inactive" ? "🔒" : "🔓", `${ns === "inactive" ? "Khóa" : "Mở khóa"} tài khoản: ${u.name}`);
+    } catch (e) {
+      console.warn("Failed to toggle profile status in database, using local state", e);
+      setUsers(p => p.map(x => x.id === u.id ? { ...x, status: ns } : x));
+      showT(ns === "inactive" ? `🔒 Đã khóa "${u.name}" (Local)` : `🔓 Đã mở khóa "${u.name}" (Local)`, ns === "inactive" ? "warn" : "success");
+    }
+  };
 
   return (
     <div className="af">
@@ -1782,10 +1874,16 @@ export default function App() {
   });
   const [editAdmin, setEditAdmin] = useState(null);
 
-  const saveAdminProfile = (data) => {
+  const saveAdminProfile = async (data) => {
     setAdminProfile(data);
     localStorage.setItem("wms_admin_profile", JSON.stringify(data));
     logActivity("⚙️", "Cập nhật thông tin cá nhân của Admin");
+    try {
+      await supabase.from('profiles').update({ name: data.name }).eq('email', data.email);
+      setUsers(prev => prev.map(u => u.email.toLowerCase() === data.email.toLowerCase() ? { ...u, name: data.name } : u));
+    } catch (e) {
+      console.warn("Failed to sync admin profile update to database", e);
+    }
   };
 
   useEffect(() => {
@@ -1835,6 +1933,31 @@ export default function App() {
           dept: role === 'admin' ? 'IT' : 'Kho'
         });
 
+        // Ensure user has a profile in the profiles table
+        try {
+          const { data: existing } = await supabase.from('profiles').select('id').eq('email', user.email).maybeSingle();
+          if (!existing) {
+            const initials = user.email.slice(0, 2).toUpperCase();
+            const username = user.email.split("@")[0];
+            await supabase.from('profiles').insert({
+              username: username,
+              name: name,
+              email: user.email,
+              phone: "",
+              role: role === 'import_staff' ? 'WarehouseStaff' : role === 'export_staff' ? 'WarehouseStaff' : role === 'warehouse_manager' ? 'Manager' : 'Admin',
+              dept: role === 'admin' ? 'IT' : 'Kho',
+              position: role === 'import_staff' ? 'NV Nhập kho' : role === 'export_staff' ? 'NV Xuất kho' : role === 'warehouse_manager' ? 'Quản lý Kho' : 'Quản trị viên',
+              status: "active",
+              last_login: nowStr,
+              avatar: initials
+            });
+          } else {
+            await supabase.from('profiles').update({ last_login: nowStr, status: 'active' }).eq('email', user.email);
+          }
+        } catch (e) {
+          console.warn("Failed to insert/ensure profile for logged in user", e);
+        }
+
         setUsers(prev => {
           const emailExists = prev.some(u => u.email.toLowerCase() === user.email.toLowerCase());
           if (emailExists) {
@@ -1870,6 +1993,29 @@ export default function App() {
         } catch (e) {
           console.warn("login_history table may not exist yet, skipping database insertion", e);
         }
+      }
+
+      // Fetch users from profiles table
+      try {
+        const { data: profs, error: profsErr } = await supabase.from('profiles').select('*');
+        if (profsErr) throw profsErr;
+        if (profs && profs.length > 0) {
+          setUsers(profs.map(u => ({
+            id: u.id,
+            name: u.name,
+            username: u.username,
+            email: u.email,
+            phone: u.phone || "",
+            role: u.role,
+            dept: u.dept || "",
+            position: u.position || "",
+            status: u.status,
+            lastLogin: u.last_login || "Chưa đăng nhập",
+            avatar: u.avatar || "U"
+          })));
+        }
+      } catch (e) {
+        console.warn("profiles table may not exist yet, using SEED_USERS", e);
       }
 
       // Fetch login history

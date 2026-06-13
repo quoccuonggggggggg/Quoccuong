@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { supabase } from "./lib/supabase";
 import * as XLSX from "xlsx";
 import {
@@ -943,6 +943,135 @@ function WarehousesPage({ whs, setWhs, prods, showT, logActivity }) {
 }
 
 /* ═══════════════════════════════════════════════════════════
+   SEARCHABLE PRODUCT SELECT COMPONENT
+═══════════════════════════════════════════════════════════ */
+function SearchableProductSelect({ value, onChange, options }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const dropdownRef = useRef(null);
+
+  const selectedOption = options.find(o => o.id === value);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const filteredOptions = options.filter(o =>
+    (o.name && o.name.toLowerCase().includes(search.toLowerCase())) ||
+    (o.sku && o.sku.toLowerCase().includes(search.toLowerCase()))
+  );
+
+  return (
+    <div ref={dropdownRef} style={{ position: "relative", width: "100%" }}>
+      <div
+        onClick={() => { setIsOpen(!isOpen); setSearch(""); }}
+        className="inp"
+        style={{
+          padding: "5px 10px",
+          fontSize: "12px",
+          cursor: "pointer",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          background: "var(--b1)",
+          borderColor: "var(--bd)",
+          borderRadius: "6px",
+          minHeight: "30px",
+          userSelect: "none"
+        }}
+      >
+        <span style={{
+          whiteSpace: "nowrap",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          maxWidth: "260px"
+        }}>
+          {selectedOption ? `${selectedOption.name} (tồn: ${selectedOption.stock})` : "Chọn sản phẩm..."}
+        </span>
+        <span style={{ fontSize: "9px", color: "var(--t3)" }}>▼</span>
+      </div>
+
+      {isOpen && (
+        <div style={{
+          position: "absolute",
+          top: "100%",
+          left: 0,
+          right: 0,
+          zIndex: 999,
+          marginTop: "4px",
+          background: "var(--b1)",
+          border: "1px solid var(--bd)",
+          borderRadius: "8px",
+          boxShadow: "0 6px 16px rgba(0,0,0,0.18)",
+          maxHeight: "240px",
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden"
+        }}>
+          <div style={{ padding: "6px", borderBottom: "1px solid var(--bd)", background: "var(--b2)" }}>
+            <input
+              type="text"
+              autoFocus
+              placeholder="Tìm kiếm sản phẩm..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="inp"
+              style={{
+                width: "100%",
+                padding: "4px 8px",
+                fontSize: "12px",
+                borderRadius: "4px"
+              }}
+            />
+          </div>
+          <div style={{ overflowY: "auto", flex: 1, maxHeight: "190px" }}>
+            {filteredOptions.length === 0 ? (
+              <div style={{ padding: "10px", textAlign: "center", color: "var(--t3)", fontSize: "12px" }}>
+                Không tìm thấy sản phẩm
+              </div>
+            ) : (
+              filteredOptions.map(o => (
+                <div
+                  key={o.id}
+                  onClick={() => {
+                    onChange(o.id);
+                    setIsOpen(false);
+                    setSearch("");
+                  }}
+                  style={{
+                    padding: "7px 11px",
+                    fontSize: "12px",
+                    cursor: "pointer",
+                    background: o.id === value ? "var(--b3)" : "transparent",
+                    color: "var(--t1)",
+                    borderBottom: "1px solid var(--bd)",
+                    transition: "background 0.1s"
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = "var(--b2)"}
+                  onMouseLeave={e => e.currentTarget.style.background = o.id === value ? "var(--b3)" : "transparent"}
+                >
+                  <div style={{ fontWeight: 600 }}>{o.name}</div>
+                  <div style={{ display: "flex", justifyContent: "space-between", color: "var(--t3)", fontSize: "11px", marginTop: "2px" }}>
+                    <span>SKU: {o.sku || "—"}</span>
+                    <span>Tồn: {o.stock}</span>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
    ORDER FORM MODAL (dùng chung nhập & xuất)
 ═══════════════════════════════════════════════════════════ */
 function OrderFormModal({ type, mode, order, prods, setProds, whs, supps, users, showT, onSave, onClose }) {
@@ -1081,9 +1210,11 @@ function OrderFormModal({ type, mode, order, prods, setProds, whs, supps, users,
                   {form.items.map((it, idx) => (
                     <tr key={idx} style={{ borderTop:"1px solid var(--bd)" }}>
                       <td style={{ padding:"7px 11px" }}>
-                        <select className="inp" style={{ padding:"4px 7px", fontSize:12 }} value={it.pid} onChange={e => upItem(idx, "pid", e.target.value)}>
-                          {(isImp ? prods : (whProds.length ? whProds : prods)).map(p => <option key={p.id} value={p.id}>{p.name} (tồn: {p.stock})</option>)}
-                        </select>
+                        <SearchableProductSelect
+                          value={it.pid}
+                          onChange={val => upItem(idx, "pid", val)}
+                          options={isImp ? prods : (whProds.length ? whProds : prods)}
+                        />
                       </td>
                       <td style={{ padding:"7px 11px", textAlign:"right" }}>
                         <input type="number" min="1" className="inp" style={{ width:65, padding:"4px 7px", fontSize:12, textAlign:"right" }} value={it.qty} onChange={e => upItem(idx, "qty", e.target.value)} />

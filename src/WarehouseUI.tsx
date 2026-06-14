@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { useState, useMemo, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { supabase } from "./lib/supabase";
 import * as XLSX from "xlsx";
 import {
@@ -281,7 +282,7 @@ const Toast = ({ t, close }) => !t ? null : (
   </div>
 );
 
-const DelModal = ({ title, msg, onOk, onClose }) => (
+const DelModal = ({ title, msg, onOk, onClose }) => createPortal(
   <div className="mo" onClick={e => e.target === e.currentTarget && onClose()}>
     <div className="mb mb-sm as" style={{ textAlign:"center" }}>
       <div style={{ width:56, height:56, borderRadius:"50%", background:"rgba(239,68,68,.1)", border:"2px solid rgba(239,68,68,.3)", display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 13px" }}><Trash2 size={25} color="#EF4444" /></div>
@@ -293,7 +294,8 @@ const DelModal = ({ title, msg, onOk, onClose }) => (
         <button className="btn btnD" onClick={onOk} style={{ flex:1 }}><Trash2 size={13} />Xóa</button>
       </div>
     </div>
-  </div>
+  </div>,
+  document.body
 );
 
 const KpiCard = ({ label, count, color, Icon, active, onClick }) => (
@@ -774,7 +776,7 @@ function ProductsPage({ prods, setProds, whs, showT }) {
           </div>
         </div>
       </div>
-      {(modal === "add" || modal === "edit") && (
+      {(modal === "add" || modal === "edit") && createPortal(
         <div className="mo" onClick={e => e.target === e.currentTarget && setModal(null)}>
           <div className="mb mb-lg as">
             <div className="mt">
@@ -807,7 +809,8 @@ function ProductsPage({ prods, setProds, whs, showT }) {
               <button className="btn btnP" onClick={save}>{modal === "add" ? <><Plus size={13} />Thêm sản phẩm</> : <><CheckCircle size={13} />Lưu thay đổi</>}</button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
       {modal === "del" && sel && <DelModal title="Xóa sản phẩm?" msg={`Xóa "${sel.name}" (${sel.sku})?`} onOk={del} onClose={() => setModal(null)} />}
     </div>
@@ -909,7 +912,7 @@ function WarehousesPage({ whs, setWhs, prods, showT, logActivity }) {
         </table>
       </div>
       {/* Edit modal */}
-      {modal === "edit" && sel && (
+      {modal === "edit" && sel && createPortal(
         <div className="mo" onClick={e => e.target === e.currentTarget && setModal(null)}>
           <div className="mb as">
             <div className="mt"><div style={{ width:34, height:34, borderRadius:9, background:"linear-gradient(135deg,#2563EB,#06B6D4)", display:"flex", alignItems:"center", justifyContent:"center" }}><Edit2 size={16} color="#fff" /></div>Chỉnh sửa kho: {sel.name}<button className="btn btnS btnI" style={{ marginLeft:"auto" }} onClick={() => setModal(null)}><X size={13} /></button></div>
@@ -935,138 +938,10 @@ function WarehousesPage({ whs, setWhs, prods, showT, logActivity }) {
               <button className="btn btnP" onClick={save}><CheckCircle size={13} />Lưu thay đổi</button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
       {modal === "del" && sel && <DelModal title="Xóa kho hàng?" msg={`Xóa "${sel.name}"? Chỉ xóa được khi không còn sản phẩm.`} onOk={del} onClose={() => setModal(null)} />}
-    </div>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════
-   SEARCHABLE PRODUCT SELECT COMPONENT
-═══════════════════════════════════════════════════════════ */
-function SearchableProductSelect({ value, onChange, options }) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [search, setSearch] = useState("");
-  const dropdownRef = useRef(null);
-
-  const selectedOption = options.find(o => o.id === value);
-
-  useEffect(() => {
-    function handleClickOutside(event) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setIsOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  const filteredOptions = options.filter(o =>
-    (o.name && o.name.toLowerCase().includes(search.toLowerCase())) ||
-    (o.sku && o.sku.toLowerCase().includes(search.toLowerCase()))
-  );
-
-  return (
-    <div ref={dropdownRef} style={{ position: "relative", width: "100%" }}>
-      <div
-        onClick={() => { setIsOpen(!isOpen); setSearch(""); }}
-        className="inp"
-        style={{
-          padding: "5px 10px",
-          fontSize: "12px",
-          cursor: "pointer",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          background: "var(--b1)",
-          borderColor: "var(--bd)",
-          borderRadius: "6px",
-          minHeight: "30px",
-          userSelect: "none"
-        }}
-      >
-        <span style={{
-          whiteSpace: "nowrap",
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          maxWidth: "260px"
-        }}>
-          {selectedOption ? `${selectedOption.name} (tồn: ${selectedOption.stock})` : "Chọn sản phẩm..."}
-        </span>
-        <span style={{ fontSize: "9px", color: "var(--t3)" }}>▼</span>
-      </div>
-
-      {isOpen && (
-        <div style={{
-          position: "absolute",
-          top: "100%",
-          left: 0,
-          right: 0,
-          zIndex: 999,
-          marginTop: "4px",
-          background: "var(--b1)",
-          border: "1px solid var(--bd)",
-          borderRadius: "8px",
-          boxShadow: "0 6px 16px rgba(0,0,0,0.18)",
-          maxHeight: "240px",
-          display: "flex",
-          flexDirection: "column",
-          overflow: "hidden"
-        }}>
-          <div style={{ padding: "6px", borderBottom: "1px solid var(--bd)", background: "var(--b2)" }}>
-            <input
-              type="text"
-              autoFocus
-              placeholder="Tìm kiếm sản phẩm..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="inp"
-              style={{
-                width: "100%",
-                padding: "4px 8px",
-                fontSize: "12px",
-                borderRadius: "4px"
-              }}
-            />
-          </div>
-          <div style={{ overflowY: "auto", flex: 1, maxHeight: "190px" }}>
-            {filteredOptions.length === 0 ? (
-              <div style={{ padding: "10px", textAlign: "center", color: "var(--t3)", fontSize: "12px" }}>
-                Không tìm thấy sản phẩm
-              </div>
-            ) : (
-              filteredOptions.map(o => (
-                <div
-                  key={o.id}
-                  onClick={() => {
-                    onChange(o.id);
-                    setIsOpen(false);
-                    setSearch("");
-                  }}
-                  style={{
-                    padding: "7px 11px",
-                    fontSize: "12px",
-                    cursor: "pointer",
-                    background: o.id === value ? "var(--b3)" : "transparent",
-                    color: "var(--t1)",
-                    borderBottom: "1px solid var(--bd)",
-                    transition: "background 0.1s"
-                  }}
-                  onMouseEnter={e => e.currentTarget.style.background = "var(--b2)"}
-                  onMouseLeave={e => e.currentTarget.style.background = o.id === value ? "var(--b3)" : "transparent"}
-                >
-                  <div style={{ fontWeight: 600 }}>{o.name}</div>
-                  <div style={{ display: "flex", justifyContent: "space-between", color: "var(--t3)", fontSize: "11px", marginTop: "2px" }}>
-                    <span>SKU: {o.sku || "—"}</span>
-                    <span>Tồn: {o.stock}</span>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -1152,7 +1027,7 @@ function OrderFormModal({ type, mode, order, prods, setProds, whs, supps, users,
   const rmItem  = idx => setForm(p => ({ ...p, items:p.items.filter((_, i) => i !== idx) }));
   const validate = () => { const e = {}; if (isImp && !form.sid) e.sid = "Chọn nhà CC"; if (!isImp && !form.customer?.trim()) e.customer = "Bắt buộc"; if (form.items.length === 0) e.items = "Cần ít nhất 1 sản phẩm"; setErrs(e); return !Object.keys(e).length; };
 
-  return (
+  return createPortal(
     <div className="mo" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="mb mb-lg as">
         <div className="mt">
@@ -1210,11 +1085,44 @@ function OrderFormModal({ type, mode, order, prods, setProds, whs, supps, users,
                   {form.items.map((it, idx) => (
                     <tr key={idx} style={{ borderTop:"1px solid var(--bd)" }}>
                       <td style={{ padding:"7px 11px" }}>
-                        <SearchableProductSelect
-                          value={it.pid}
-                          onChange={val => upItem(idx, "pid", val)}
-                          options={isImp ? prods : (whProds.length ? whProds : prods)}
-                        />
+                        <div style={{ display:"flex", gap:6, alignItems:"center" }}>
+                          <input
+                            type="text"
+                            placeholder="Gõ tìm SP..."
+                            value={it.searchQuery || ""}
+                            onChange={e => upItem(idx, "searchQuery", e.target.value)}
+                            className="inp"
+                            style={{ width: "120px", padding: "4px 8px", fontSize: "12px", height: "30px" }}
+                          />
+                          <select
+                            className="inp"
+                            style={{ flex:1, padding:"4px 7px", fontSize:"12px", height:"30px" }}
+                            value={it.pid}
+                            onChange={e => upItem(idx, "pid", e.target.value)}
+                          >
+                            {(() => {
+                              const opts = isImp ? prods : (whProds.length ? whProds : prods);
+                              const query = (it.searchQuery || "").toLowerCase().trim();
+                              const filtered = opts.filter(p =>
+                                !query ||
+                                p.name.toLowerCase().includes(query) ||
+                                (p.sku && p.sku.toLowerCase().includes(query))
+                              );
+                              const currentInFiltered = filtered.some(p => p.id === it.pid);
+                              const currentProd = opts.find(p => p.id === it.pid);
+                              const finalOpts = (!currentInFiltered && currentProd) ? [currentProd, ...filtered] : filtered;
+                              
+                              if (finalOpts.length === 0) {
+                                return <option value="">Không tìm thấy sản phẩm</option>;
+                              }
+                              return finalOpts.map(p => (
+                                <option key={p.id} value={p.id}>
+                                  {p.name} (tồn: {p.stock})
+                                </option>
+                              ));
+                            })()}
+                          </select>
+                        </div>
                       </td>
                       <td style={{ padding:"7px 11px", textAlign:"right" }}>
                         <input type="number" min="1" className="inp" style={{ width:65, padding:"4px 7px", fontSize:12, textAlign:"right" }} value={it.qty} onChange={e => upItem(idx, "qty", e.target.value)} />
@@ -1248,13 +1156,14 @@ function OrderFormModal({ type, mode, order, prods, setProds, whs, supps, users,
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
 /* detail view modal */
 function OrderViewModal({ order, isImp, onEdit, onClose }) {
-  return (
+  return createPortal(
     <div className="mo" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="mb mb-lg as">
         <div className="mt">{isImp ? <Receipt size={17} style={{ color:"#2563EB" }} /> : <FileText size={17} style={{ color:"#06B6D4" }} />}Chi tiết phiếu {isImp ? "nhập" : "xuất"} {order.id}<button className="btn btnS btnI" style={{ marginLeft:"auto" }} onClick={onClose}><X size={13} /></button></div>
@@ -1275,7 +1184,8 @@ function OrderViewModal({ order, isImp, onEdit, onClose }) {
           <button className="btn btnS" onClick={onClose}>Đóng</button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -1616,7 +1526,7 @@ function SuppliersPage({ supps, setSupps, showT, logActivity }) {
           </div>
         ))}
       </div>
-      {(modal === "add" || modal === "edit") && (
+      {(modal === "add" || modal === "edit") && createPortal(
         <div className="mo" onClick={e => e.target === e.currentTarget && setModal(null)}>
           <div className="mb mb-lg as">
             <div className="mt">{modal === "add" ? "Thêm nhà cung cấp mới" : `Sửa nhà cung cấp: ${sel?.name}`}<button className="btn btnS btnI" style={{ marginLeft:"auto" }} onClick={() => setModal(null)}><X size={13} /></button></div>
@@ -1630,7 +1540,8 @@ function SuppliersPage({ supps, setSupps, showT, logActivity }) {
             </div>
             <div style={{ display:"flex", gap:8, justifyContent:"flex-end", marginTop:17 }}><button className="btn btnS" onClick={() => setModal(null)}>Hủy</button><button className="btn btnP" onClick={save}>Lưu nhà cung cấp</button></div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
       {modal === "del" && sel && <DelModal title="Xóa NCC?" msg={`Xóa "${sel.name}"?`} onOk={del} onClose={() => setModal(null)} />}
     </div>
@@ -1844,7 +1755,7 @@ function UsersPage({ users, setUsers, showT, loginHistory, logActivity }) {
           </table>
         </div>
       </div>
-      {(modal === "add" || modal === "edit") && (
+      {(modal === "add" || modal === "edit") && createPortal(
         <div className="mo" onClick={e => e.target === e.currentTarget && close()}>
           <div className="mb mb-lg as">
             <div className="mt"><div style={{ width:34, height:34, borderRadius:9, background:"linear-gradient(135deg,#2563EB,#8B5CF6)", display:"flex", alignItems:"center", justifyContent:"center" }}>{modal === "add" ? <Plus size={17} color="#fff" /> : <Edit2 size={16} color="#fff" />}</div>{modal === "add" ? "Thêm người dùng mới" : `Sửa: ${sel?.name}`}<button className="btn btnS btnI" style={{ marginLeft:"auto" }} onClick={close}><X size={13} /></button></div>
@@ -1859,17 +1770,19 @@ function UsersPage({ users, setUsers, showT, loginHistory, logActivity }) {
             <div style={{ marginTop:10 }}><Fld label={modal === "add" ? "Mật khẩu (bắt buộc)" : "Mật khẩu mới"} req={modal === "add"} error={errs.password}><input type="password" className="inp" placeholder="Tối thiểu 6 ký tự" value={form.password || ""} onChange={e => setForm(p => ({ ...p, password:e.target.value }))} style={{ borderColor:errs.password ? "#EF4444" : undefined }} /></Fld></div>
             <div style={{ display:"flex", gap:8, justifyContent:"flex-end", marginTop:17 }}><button className="btn btnS" onClick={close}>Hủy</button><button className="btn btnP" onClick={save}>{modal === "add" ? <><Plus size={13} />Tạo tài khoản</> : <><CheckCircle size={13} />Lưu</>}</button></div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
-      {modal === "view" && sel && (
+      {modal === "view" && sel && createPortal(
         <div className="mo" onClick={e => e.target === e.currentTarget && close()}>
           <div className="mb as"><div className="mt"><User size={17} style={{ color:"#2563EB" }} />Chi tiết tài khoản<button className="btn btnS btnI" style={{ marginLeft:"auto" }} onClick={close}><X size={13} /></button></div>
           <div style={{ textAlign:"center", padding:"6px 0 16px" }}><div style={{ width:64, height:64, borderRadius:"50%", background:`linear-gradient(135deg,#${RGRAD[sel.role] || "2563EB,8B5CF6"})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, fontWeight:800, color:"#fff", margin:"0 auto 11px", boxShadow:"0 0 22px rgba(37,99,235,.35)" }}>{sel.avatar}</div><p style={{ fontSize:17, fontWeight:800 }}>{sel.name}</p><p style={{ fontSize:12, color:"var(--t2)", marginTop:3 }}>@{sel.username}</p><div style={{ display:"flex", gap:8, justifyContent:"center", marginTop:9 }}><Bdg r={sel.role} /><Bdg s={sel.status} /></div></div>
           <div className="g2" style={{ gap:9 }}>{[["Mã",sel.id],["Email",sel.email],["SĐT",sel.phone||"—"],["Phòng ban",sel.dept||"—"],["Chức vụ",sel.position||"—"],["Đăng nhập cuối",sel.lastLogin]].map(([k,v])=><div key={k} style={{background:"var(--b2)",borderRadius:9,padding:"9px 11px"}}><p style={{fontSize:11,color:"var(--t3)",fontWeight:600}}>{k}</p><p style={{fontSize:12,fontWeight:600,marginTop:3}}>{v}</p></div>)}</div>
           <div style={{display:"flex",gap:8,justifyContent:"flex-end",marginTop:17}}><button className="btn btnS" onClick={()=>{setForm({...sel,password:""});setErrs({});setModal("edit")}}><Edit2 size={12}/>Sửa</button><button className="btn btnS" onClick={close}>Đóng</button></div></div>
-        </div>
+        </div>,
+        document.body
       )}
-      {modal === "lock" && sel && (
+      {modal === "lock" && sel && createPortal(
         <div className="mo" onClick={e => e.target === e.currentTarget && close()}>
           <div className="mb mb-sm as" style={{ textAlign:"center" }}>
             <div style={{ width:56, height:56, borderRadius:"50%", background:sel.status === "active" ? "rgba(245,158,11,.12)" : "rgba(20,184,166,.12)", border:`2px solid ${sel.status === "active" ? "rgba(245,158,11,.4)" : "rgba(20,184,166,.4)"}`, display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 13px" }}>{sel.status === "active" ? <Lock size={24} color="#F59E0B" /> : <CheckCircle size={24} color="#14B8A6" />}</div>
@@ -1880,7 +1793,8 @@ function UsersPage({ users, setUsers, showT, loginHistory, logActivity }) {
               <button className="btn" onClick={() => { tog(sel); close(); }} style={{ flex:1, background:sel.status === "active" ? "linear-gradient(135deg,#F59E0B,#D97706)" : "linear-gradient(135deg,#14B8A6,#0D9488)", color:"#fff" }}>{sel.status === "active" ? <><Lock size={12} />Khóa</> : <><CheckCircle size={12} />Mở khóa</>}</button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
       {modal === "del" && sel && <DelModal title="Xóa tài khoản?" msg={`Xóa "${sel.name}" (${sel.email})?`} onOk={del} onClose={close} />}
     </div>
@@ -2709,7 +2623,7 @@ export default function App() {
           <div className="pc">{renderPage()}</div>
         </div>
 
-        {sysModal === "profile" && (
+        {sysModal === "profile" && createPortal(
           <div className="mo" onClick={e => e.target === e.currentTarget && !editAdmin && setSysModal(null)}>
             <div className="mb mb-sm">
               <div className="mt">
@@ -2766,10 +2680,11 @@ export default function App() {
                 </>
               )}
             </div>
-          </div>
+          </div>,
+          document.body
         )}
         
-        {sysModal === "settings" && (
+        {sysModal === "settings" && createPortal(
           <div className="mo" onClick={e => e.target === e.currentTarget && setSysModal(null)}>
             <div className="mb mb-sm">
               <div className="mt"><Settings size={16} style={{color:"#06B6D4"}}/> Cài đặt<button className="btn btnS btnI" style={{ marginLeft:"auto" }} onClick={() => setSysModal(null)}><X size={13}/></button></div>
@@ -2784,7 +2699,8 @@ export default function App() {
               </div>
               <button className="btn btnP" style={{width:"100%", marginTop:20}} onClick={() => setSysModal(null)}>Xong</button>
             </div>
-          </div>
+          </div>,
+          document.body
         )}
       </div>
     </>

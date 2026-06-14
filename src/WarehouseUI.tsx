@@ -956,7 +956,7 @@ function OrderFormModal({ type, mode, order, prods, setProds, whs, supps, users,
     wid:order.wid, wname:order.wname, status:order.status, date:order.date, note:order.note || "", items:order.items.map(i => ({ ...i })),
   } : {
     ...(isImp ? { sid:supps[0]?.id || "", sname:supps[0]?.name || "", receiver:"" } : { customer:"", handler:"" }),
-    wid:whs[0]?.id || "", wname:whs[0]?.name || "", status:"pending", date:today(), note:"", items:[],
+    wid:whs[0]?.id || "", wname:whs[0]?.name || "", status:"completed", date:today(), note:"", items:[],
   });
   const [errs, setErrs] = useState({});
   const whProds = prods.filter(p => p.wid === form.wid);
@@ -1053,9 +1053,6 @@ function OrderFormModal({ type, mode, order, prods, setProds, whs, supps, users,
           </>)}
           <Fld label={`Kho ${isImp ? "nhập" : "xuất"}`}>
             <select className="inp" value={form.wid} onChange={e => { const w = whs.find(x => x.id === e.target.value); setForm(p => ({ ...p, wid:e.target.value, wname:w?.name || "", items:[] })); }}>{[...whs].sort((a, b) => a.name.localeCompare(b.name)).map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</select>
-          </Fld>
-          <Fld label="Trạng thái">
-            <select className="inp" value={form.status} onChange={e => setForm(p => ({ ...p, status:e.target.value }))}><option value="pending">Chờ duyệt</option><option value="processing">Đang xử lý</option><option value="completed">Hoàn thành</option><option value="cancelled">Đã hủy</option></select>
           </Fld>
           <Fld label="Ngày tạo"><input type="date" className="inp" value={form.date} onChange={e => setForm(p => ({ ...p, date:e.target.value }))} /></Fld>
           <div style={{ gridColumn:"1/-1" }}><Fld label="Ghi chú"><input className="inp" placeholder="Ghi chú..." value={form.note || ""} onChange={e => setForm(p => ({ ...p, note:e.target.value }))} /></Fld></div>
@@ -1180,7 +1177,6 @@ function OrderViewModal({ order, isImp, onEdit, onClose }) {
           </tbody>
         </table>
         <div style={{ display:"flex", gap:8, justifyContent:"flex-end", marginTop:17 }}>
-          <button className="btn btnS" onClick={onEdit}><Edit2 size={12} />Chỉnh sửa</button>
           <button className="btn btnS" onClick={onClose}>Đóng</button>
         </div>
       </div>
@@ -1195,8 +1191,6 @@ function OrderViewModal({ order, isImp, onEdit, onClose }) {
 const IMP_KPI = [
   { k:"all",        l:"Tổng phiếu",  c:"#2563EB", I:Receipt      },
   { k:"completed",  l:"Hoàn thành",  c:"#14B8A6", I:PackageCheck },
-  { k:"processing", l:"Đang xử lý",  c:"#F59E0B", I:Clock        },
-  { k:"pending",    l:"Chờ duyệt",   c:"#8B5CF6", I:AlertTriangle},
   { k:"cancelled",  l:"Đã hủy",      c:"#EF4444", I:XCircle      },
 ];
 
@@ -1308,7 +1302,6 @@ function ImportsPage({ imps, setImps, prods, setProds, whs, supps, users, showT,
                 <td><Bdg s={o.status} /></td>
                 <td><div style={{ display:"flex", gap:3, justifyContent:"center" }}>
                   <button className="btn btnS btnI" onClick={() => { setSel(o); setModal("view"); }}><Eye size={12} /></button>
-                  <button className="btn btnS btnI" onClick={() => { setSel(o); setModal("edit"); }}><Edit2 size={12} style={{ color:"#2563EB" }} /></button>
                   <button className="btn btnS btnI" onClick={() => { setSel(o); setModal("del"); }}><Trash2 size={12} style={{ color:"#EF4444" }} /></button>
                 </div></td>
               </tr>
@@ -1320,8 +1313,8 @@ function ImportsPage({ imps, setImps, prods, setProds, whs, supps, users, showT,
           <span>Tổng: <strong style={{ color:"#14B8A6" }}>{fmtM(filtered.reduce((s, o) => s + orderTotal(o.items), 0))}</strong></span>
         </div>
       </div>
-      {modal === "view" && sel && <OrderViewModal order={sel} isImp onEdit={() => setModal("edit")} onClose={() => { setModal(null); setSel(null); }} />}
-      {(modal === "add" || modal === "edit") && <OrderFormModal type="imp" mode={modal} order={sel} prods={prods} setProds={setProds} whs={whs} supps={supps} users={users} showT={showT} onSave={handleSave} onClose={() => { setModal(null); setSel(null); }} />}      {modal === "del" && sel && <DelModal title="Xóa phiếu nhập?" msg={`Xóa phiếu ${sel.id}?${sel.status === "completed" ? " Tồn kho sẽ bị trừ lại." : ""}`} onOk={handleDel} onClose={() => { setModal(null); setSel(null); }} />}
+      {modal === "view" && sel && <OrderViewModal order={sel} isImp onClose={() => { setModal(null); setSel(null); }} />}
+      {modal === "add" && <OrderFormModal type="imp" mode="add" order={null} prods={prods} setProds={setProds} whs={whs} supps={supps} users={users} showT={showT} onSave={handleSave} onClose={() => { setModal(null); setSel(null); }} />}      {modal === "del" && sel && <DelModal title="Xóa phiếu nhập?" msg={`Xóa phiếu ${sel.id}?${sel.status === "completed" ? " Tồn kho sẽ bị trừ lại." : ""}`} onOk={handleDel} onClose={() => { setModal(null); setSel(null); }} />}
     </div>
   );
 }
@@ -1332,8 +1325,6 @@ function ImportsPage({ imps, setImps, prods, setProds, whs, supps, users, showT,
 const EXP_KPI = [
   { k:"all",        l:"Tổng phiếu", c:"#06B6D4", I:FileText     },
   { k:"completed",  l:"Hoàn thành", c:"#14B8A6", I:PackageCheck },
-  { k:"processing", l:"Đang xử lý", c:"#F59E0B", I:Clock        },
-  { k:"pending",    l:"Chờ duyệt",  c:"#8B5CF6", I:AlertTriangle},
   { k:"cancelled",  l:"Đã hủy",     c:"#EF4444", I:PackageX     },
 ];
 
@@ -1444,7 +1435,6 @@ function ExportsPage({ exps, setExps, prods, setProds, whs, users, showT, logAct
                 <td><Bdg s={o.status} /></td>
                 <td><div style={{ display:"flex", gap:3, justifyContent:"center" }}>
                   <button className="btn btnS btnI" onClick={() => { setSel(o); setModal("view"); }}><Eye size={12} /></button>
-                  <button className="btn btnS btnI" onClick={() => { setSel(o); setModal("edit"); }}><Edit2 size={12} style={{ color:"#2563EB" }} /></button>
                   <button className="btn btnS btnI" onClick={() => { setSel(o); setModal("del"); }}><Trash2 size={12} style={{ color:"#EF4444" }} /></button>
                 </div></td>
               </tr>
@@ -1456,8 +1446,8 @@ function ExportsPage({ exps, setExps, prods, setProds, whs, users, showT, logAct
           <span>Tổng: <strong style={{ color:"#06B6D4" }}>{fmtM(filtered.reduce((s, o) => s + orderTotal(o.items), 0))}</strong></span>
         </div>
       </div>
-      {modal === "view" && sel && <OrderViewModal order={sel} isImp={false} onEdit={() => setModal("edit")} onClose={() => { setModal(null); setSel(null); }} />}
-      {(modal === "add" || modal === "edit") && <OrderFormModal type="exp" mode={modal} order={sel} prods={prods} setProds={setProds} whs={whs} supps={[]} users={users} showT={showT} onSave={handleSave} onClose={() => { setModal(null); setSel(null); }} />}
+      {modal === "view" && sel && <OrderViewModal order={sel} isImp={false} onClose={() => { setModal(null); setSel(null); }} />}
+      {modal === "add" && <OrderFormModal type="exp" mode="add" order={null} prods={prods} setProds={setProds} whs={whs} supps={[]} users={users} showT={showT} onSave={handleSave} onClose={() => { setModal(null); setSel(null); }} />}
       {modal === "del" && sel && <DelModal title="Xóa phiếu xuất?" msg={`Xóa phiếu ${sel.id}?${sel.status === "completed" ? " Tồn kho sẽ được hoàn lại." : ""}`} onOk={handleDel} onClose={() => { setModal(null); setSel(null); }} />}
     </div>
   );

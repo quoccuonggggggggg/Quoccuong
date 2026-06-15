@@ -274,6 +274,12 @@ const TT  = ({ active, payload, label }) => !active || !payload?.length ? null :
   </div>
 );
 
+const PieTT = ({ active, payload }) => !active || !payload?.length ? null : (
+  <div style={{ background:"var(--b1)", border:"1px solid var(--bd2)", borderRadius:10, padding:"9px 13px" }}>
+    {payload.map((p, i) => <p key={i} style={{ color:p.color, fontSize:12, fontWeight:600 }}>{p.name}: {p.value}%</p>)}
+  </div>
+);
+
 /* ── Shared UI ──────────────────────────────────────────── */
 const Toast = ({ t, close }) => !t ? null : (
   <div className="as" style={{ position:"fixed", top:18, right:20, zIndex:600, background:t.type==="error"?"rgba(239,68,68,.96)":t.type==="warn"?"rgba(245,158,11,.96)":t.type==="info"?"rgba(37,99,235,.96)":"rgba(20,184,166,.96)", color:"#fff", padding:"11px 16px", borderRadius:12, fontWeight:600, fontSize:13, boxShadow:"0 8px 30px rgba(0,0,0,.3)", display:"flex", alignItems:"center", gap:10, maxWidth:360 }}>
@@ -604,37 +610,100 @@ function Dashboard({ prods, whs, imps, exps, dark, logActivity }) {
         </div>
         <div className="card">
           <div className="st"><Target size={15} style={{ color:"#8B5CF6" }} />Danh mục sản phẩm</div>
-          <ResponsiveContainer width="100%" height={148}><PieChart><Pie data={dynamicPie} cx="50%" cy="50%" innerRadius={40} outerRadius={62} paddingAngle={3} dataKey="v">{dynamicPie.map((e, i) => <Cell key={i} fill={e.c} />)}</Pie><Tooltip content={<TT />} formatter={v => [`${v}%`, ""]} /></PieChart></ResponsiveContainer>
+          <ResponsiveContainer width="100%" height={148}><PieChart><Pie data={dynamicPie} nameKey="n" cx="50%" cy="50%" innerRadius={40} outerRadius={62} paddingAngle={3} dataKey="v">{dynamicPie.map((e, i) => <Cell key={i} fill={e.c} />)}</Pie><Tooltip content={<PieTT />} /></PieChart></ResponsiveContainer>
           {dynamicPie.map(it => <div key={it.n} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", fontSize:12, marginBottom:3 }}><div style={{ display:"flex", alignItems:"center", gap:5 }}><span style={{ width:8, height:8, borderRadius:2, background:it.c, display:"inline-block" }} /><span style={{ color:"var(--t2)" }}>{it.n}</span></div><span style={{ fontWeight:700 }}>{it.v}%</span></div>)}
         </div>
       </div>
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:14 }}>
         <div className="card">
           <div className="st"><Warehouse size={15} style={{ color:"#06B6D4" }} />Công suất kho</div>
-          {whs.map(wh => { const u = prods.filter(p => p.wid === wh.id).reduce((s, p) => s + p.stock, 0); const pct = Math.min(100, Math.round(u / wh.capacity * 100)); const col = pct > 80 ? "#EF4444" : pct > 60 ? "#F59E0B" : "#14B8A6"; return (
-            <div key={wh.id} style={{ marginBottom:12 }}>
-              <div style={{ display:"flex", justifyContent:"space-between", marginBottom:5 }}><span style={{ fontSize:12, fontWeight:600 }}>{wh.name.split(" - ")[0]}</span><span style={{ fontSize:12, color:"var(--t2)" }}>{u}/{wh.capacity} ({pct}%)</span></div>
-              <div className="pb"><div className="pf" style={{ width:`${pct}%`, background:col }} /></div>
-            </div>
-          ); })}
+          <table className="dt">
+            <thead>
+              <tr>
+                <th>Kho</th>
+                <th>Tỉ lệ sử dụng</th>
+                <th style={{ textAlign:"right" }}>Mức dùng</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[...whs].sort((a, b) => a.name.localeCompare(b.name)).map(wh => {
+                const u = prods.filter(p => p.wid === wh.id).reduce((s, p) => s + p.stock, 0);
+                const pct = Math.min(100, Math.round(u / wh.capacity * 100));
+                const col = pct > 80 ? "#EF4444" : pct > 60 ? "#F59E0B" : "#14B8A6";
+                return (
+                  <tr key={wh.id}>
+                    <td style={{ fontWeight:600 }}>{wh.name.split(" - ")[0]}</td>
+                    <td>
+                      <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                        <div className="pb" style={{ flex:1, height:5 }}><div className="pf" style={{ width:`${pct}%`, background:col }} /></div>
+                        <span style={{ fontSize:11, fontWeight:700, color:col }}>{pct}%</span>
+                      </div>
+                    </td>
+                    <td style={{ textAlign:"right", fontWeight:600, fontSize:12 }}>{fmt(u)}/{fmt(wh.capacity)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
         <div className="card">
-          <div className="st"><AlertTriangle size={15} style={{ color:"#F59E0B" }} />Cảnh báo tồn kho</div>
-          {prods.filter(p => ["low","critical","out"].includes(p.status)).slice(0, 5).map(p => { const wh = whs.find(w => w.id === p.wid); return (
-            <div key={p.id} style={{ display:"flex", alignItems:"center", gap:9, padding:"7px 0", borderBottom:"1px solid var(--bd)" }}>
-              <div style={{ flex:1 }}><p style={{ fontSize:12, fontWeight:600 }}>{p.name}</p><p style={{ fontSize:11, color:"var(--t3)" }}>{wh?.name}</p></div>
-              <div style={{ textAlign:"right" }}><Bdg s={p.status === 'critical' ? 'critical' : p.status} /><p style={{ fontSize:13, fontWeight:800, color:p.stock <= 5 ? "#EF4444" : "#F59E0B", marginTop:2 }}>{p.stock}</p></div>
-            </div>
-          ); })}
+          <div className="st"><TrendingUp size={15} style={{ color:"#14B8A6" }} />Cảnh báo tồn kho (sản phẩm còn nhiều)</div>
+          <table className="dt">
+            <thead>
+              <tr>
+                <th>Sản phẩm</th>
+                <th>Kho</th>
+                <th style={{ textAlign:"right" }}>Tồn kho</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[...prods].sort((a, b) => b.stock - a.stock).slice(0, 5).map(p => {
+                const wh = whs.find(w => w.id === p.wid);
+                return (
+                  <tr key={p.id}>
+                    <td style={{ fontWeight:600, maxWidth:120, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }} title={p.name}>{p.name}</td>
+                    <td>{wh?.name.split(" - ")[0] || "—"}</td>
+                    <td style={{ textAlign:"right", fontWeight:800, color:"#14B8A6" }}>{fmt(p.stock)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
         <div className="card">
-          <div className="st"><Activity size={15} style={{ color:"#2563EB" }} />Hoạt động gần đây</div>
-          {[{ ic:"📥", t:"Nhập 10 Laptop Dell XPS 13", s:"Nguyễn Thị Lan · 08:30" }, { ic:"📤", t:"Xuất 3 Laptop Dell", s:"Trần Minh Khoa · 09:15" }, { ic:"⚠️", t:"Màn hình LG còn 3 cái", s:"Hệ thống · 11:30" }, { ic:"➕", t:"Thêm Router WiFi 6 ASUS", s:"Admin · 10:02" }].map((a, i) => (
-            <div key={i} style={{ display:"flex", alignItems:"flex-start", gap:9, padding:"7px 0", borderBottom:i < 3 ? "1px solid var(--bd)" : "none" }}>
-              <span style={{ fontSize:18, flexShrink:0 }}>{a.ic}</span>
-              <div><p style={{ fontSize:12, fontWeight:600 }}>{a.t}</p><p style={{ fontSize:11, color:"var(--t3)", marginTop:2 }}>{a.s}</p></div>
-            </div>
-          ))}
+          <div className="st"><AlertTriangle size={15} style={{ color:"#EF4444" }} />Cảnh báo hết hàng (sản phẩm sắp hết hàng và tồn thấp)</div>
+          <table className="dt">
+            <thead>
+              <tr>
+                <th>Sản phẩm</th>
+                <th>Kho</th>
+                <th style={{ textAlign:"right" }}>Tồn</th>
+                <th>TT</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[...prods]
+                .filter(p => ["low", "critical", "out"].includes(p.status))
+                .sort((a, b) => a.stock - b.stock)
+                .slice(0, 5)
+                .map(p => {
+                  const wh = whs.find(w => w.id === p.wid);
+                  return (
+                    <tr key={p.id}>
+                      <td style={{ fontWeight:600, maxWidth:100, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }} title={p.name}>{p.name}</td>
+                      <td>{wh?.name.split(" - ")[0] || "—"}</td>
+                      <td style={{ textAlign:"right", fontWeight:800, color:"#EF4444" }}>{p.stock}</td>
+                      <td><Bdg s={p.status} /></td>
+                    </tr>
+                  );
+                })}
+              {prods.filter(p => ["low", "critical", "out"].includes(p.status)).length === 0 && (
+                <tr>
+                  <td colSpan={4} style={{ textAlign:"center", padding:"10px 0", color:"var(--t3)" }}>Không có cảnh báo hết hàng</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
@@ -1914,7 +1983,7 @@ function ReportsPage({ prods, imps, exps, dark, logActivity, whs }) {
         <div className="card"><div className="st"><BarChart2 size={14} style={{ color:"#2563EB" }} />Nhập/Xuất kho (6 tháng)</div>
           <ResponsiveContainer width="100%" height={220}><BarChart data={dynamicBar} margin={{ top:5, right:8, bottom:5, left:-10 }}><CartesianGrid strokeDasharray="3 3" stroke={gc} /><XAxis dataKey="m" tick={{ fill:tc, fontSize:11 }} axisLine={false} tickLine={false} /><YAxis tick={{ fill:tc, fontSize:11 }} axisLine={false} tickLine={false} /><Tooltip content={<TT />} /><Legend wrapperStyle={{ fontSize:12, color:tc }} /><Bar dataKey="n" name="Nhập kho (Tr.đ)" fill="#2563EB" radius={[3,3,0,0]} /><Bar dataKey="x" name="Xuất kho (Tr.đ)" fill="#06B6D4" radius={[3,3,0,0]} /></BarChart></ResponsiveContainer></div>
         <div className="card"><div className="st"><Target size={14} style={{ color:"#8B5CF6" }} />Danh mục</div>
-          <ResponsiveContainer width="100%" height={185}><PieChart><Pie data={dynamicPie} cx="50%" cy="50%" outerRadius={70} paddingAngle={3} dataKey="v">{dynamicPie.map((e, i) => <Cell key={i} fill={e.c} />)}</Pie><Tooltip content={<TT />} formatter={v => [`${v}%`, ""]} /></PieChart></ResponsiveContainer>
+          <ResponsiveContainer width="100%" height={185}><PieChart><Pie data={dynamicPie} nameKey="n" cx="50%" cy="50%" outerRadius={70} paddingAngle={3} dataKey="v">{dynamicPie.map((e, i) => <Cell key={i} fill={e.c} />)}</Pie><Tooltip content={<PieTT />} /></PieChart></ResponsiveContainer>
           {dynamicPie.map(it => <div key={it.n} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", fontSize:12, marginBottom:3 }}><div style={{ display:"flex", alignItems:"center", gap:5 }}><span style={{ width:8, height:8, borderRadius:2, background:it.c, display:"inline-block" }} /><span style={{ color:"var(--t2)" }}>{it.n}</span></div><span style={{ fontWeight:700 }}>{it.v}%</span></div>)}</div>
       </div>
       <div className="g3" style={{ marginTop: 14, maxWidth: "1200px" }}>

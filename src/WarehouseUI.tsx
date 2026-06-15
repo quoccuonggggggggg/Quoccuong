@@ -258,7 +258,20 @@ const getMajorCategory = (cat) => {
 };
 
 const today = () => new Date().toISOString().slice(0, 10);
-const genId = (p, l) => `${p}${String(l.length + 1).padStart(3, "0")}`;
+const genId = (p, l) => {
+  let maxNum = 0;
+  const regex = new RegExp(`^${p}(\\d+)$`);
+  l.forEach(item => {
+    if (item && item.id) {
+      const match = item.id.match(regex);
+      if (match) {
+        const num = parseInt(match[1], 10);
+        if (num > maxNum) maxNum = num;
+      }
+    }
+  });
+  return `${p}${String(maxNum + 1).padStart(3, "0")}`;
+};
 const sSt   = s => s === 0 ? "out" : s <= 5 ? "critical" : s <= 10 ? "low" : "active";
 const orderTotal = items => items.reduce((s, i) => s + (i.qty||0)*(i.price||0), 0);
 

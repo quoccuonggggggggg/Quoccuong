@@ -1569,33 +1569,22 @@ function UsersPage({ users, setUsers, showT, loginHistory, logActivity }) {
     };
 
     if (modal === "add") {
+      const newId = genId("U", users);
       try {
-        const { data, error } = await supabase.from('profiles').insert(dbData).select().single();
+        const { error } = await supabase.from('app_users').insert({ id: newId, ...dbData }).select().single();
         if (error) throw error;
+        const newUser = { id: newId, avatar: ini, ...form, lastLogin: "Chưa đăng nhập" };
         setUsers(p => {
-          const next = [{
-            id: data.id,
-            name: data.name,
-            username: data.username,
-            email: data.email,
-            phone: data.phone,
-            dept: data.dept,
-            position: data.position,
-            role: data.role,
-            status: data.status,
-            avatar: data.avatar,
-            lastLogin: data.last_login
-          }, ...p];
+          const next = [newUser, ...p];
           localStorage.setItem("wms_users", JSON.stringify(next));
           return next;
         });
         showT(`✅ Đã thêm "${form.name}"`);
-        logActivity("👤", `Thêm người dùng mới: ${form.name} (@${form.username})`);
+        logActivity("👤", `Thêm người dùng mới: ${form.name} (@${form.username || form.email.split('@')[0]})`);
       } catch (e) {
-        console.warn("Failed to save profile to database, using local state", e);
-        const id = genId("U", users);
+        console.warn("Failed to save to app_users, using local state", e);
         setUsers(p => {
-          const next = [{ id, avatar: ini, ...form, lastLogin: "Chưa đăng nhập" }, ...p];
+          const next = [{ id: newId, avatar: ini, ...form, lastLogin: "Chưa đăng nhập" }, ...p];
           localStorage.setItem("wms_users", JSON.stringify(next));
           return next;
         });
@@ -1603,7 +1592,7 @@ function UsersPage({ users, setUsers, showT, loginHistory, logActivity }) {
       }
     } else {
       try {
-        const { error } = await supabase.from('profiles').update({
+        const { error } = await supabase.from('app_users').update({
           username: form.username,
           name: form.name,
           email: form.email,
@@ -1622,7 +1611,7 @@ function UsersPage({ users, setUsers, showT, loginHistory, logActivity }) {
         showT(`✅ Đã cập nhật "${form.name}"`);
         logActivity("✏️", `Cập nhật thông tin người dùng: ${form.name}`);
       } catch (e) {
-        console.warn("Failed to update profile in database, using local state", e);
+        console.warn("Failed to update app_users in database, using local state", e);
         setUsers(p => {
           const next = p.map(u => u.id === sel.id ? { ...u, ...form } : u);
           localStorage.setItem("wms_users", JSON.stringify(next));
@@ -1636,7 +1625,7 @@ function UsersPage({ users, setUsers, showT, loginHistory, logActivity }) {
 
   const del = async () => {
     try {
-      const { error } = await supabase.from('profiles').delete().eq('id', sel.id);
+      const { error } = await supabase.from('app_users').delete().eq('id', sel.id);
       if (error) throw error;
       setUsers(p => {
         const next = p.filter(u => u.id !== sel.id);
@@ -1646,7 +1635,7 @@ function UsersPage({ users, setUsers, showT, loginHistory, logActivity }) {
       showT(`🗑️ Đã xóa "${sel.name}"`, "error");
       logActivity("🗑️", `Xóa tài khoản người dùng: ${sel.name}`);
     } catch (e) {
-      console.warn("Failed to delete profile from database, using local state", e);
+      console.warn("Failed to delete from app_users, using local state", e);
       setUsers(p => {
         const next = p.filter(u => u.id !== sel.id);
         localStorage.setItem("wms_users", JSON.stringify(next));
@@ -1660,7 +1649,7 @@ function UsersPage({ users, setUsers, showT, loginHistory, logActivity }) {
   const tog = async u => {
     const ns = u.status === "active" ? "inactive" : "active";
     try {
-      const { error } = await supabase.from('profiles').update({ status: ns }).eq('id', u.id);
+      const { error } = await supabase.from('app_users').update({ status: ns }).eq('id', u.id);
       if (error) throw error;
       setUsers(p => {
         const next = p.map(x => x.id === u.id ? { ...x, status: ns } : x);
@@ -1670,7 +1659,7 @@ function UsersPage({ users, setUsers, showT, loginHistory, logActivity }) {
       showT(ns === "inactive" ? `🔒 Đã khóa "${u.name}"` : `🔓 Đã mở khóa "${u.name}"`, ns === "inactive" ? "warn" : "success");
       logActivity(ns === "inactive" ? "🔒" : "🔓", `${ns === "inactive" ? "Khóa" : "Mở khóa"} tài khoản: ${u.name}`);
     } catch (e) {
-      console.warn("Failed to toggle profile status in database, using local state", e);
+      console.warn("Failed to toggle status in app_users, using local state", e);
       setUsers(p => {
         const next = p.map(x => x.id === u.id ? { ...x, status: ns } : x);
         localStorage.setItem("wms_users", JSON.stringify(next));
@@ -2121,14 +2110,14 @@ export default function App() {
     localStorage.setItem("wms_admin_profile", JSON.stringify(data));
     logActivity("⚙️", "Cập nhật thông tin cá nhân của Admin");
     try {
-      await supabase.from('profiles').update({ name: data.name }).eq('email', data.email);
+      await supabase.from('app_users').update({ name: data.name }).eq('email', data.email);
       setUsers(prev => {
         const next = prev.map(u => u.email.toLowerCase() === data.email.toLowerCase() ? { ...u, name: data.name } : u);
         localStorage.setItem("wms_users", JSON.stringify(next));
         return next;
       });
     } catch (e) {
-      console.warn("Failed to sync admin profile update to database", e);
+      console.warn("Failed to sync admin profile update to app_users", e);
     }
   };
 
@@ -2179,13 +2168,15 @@ export default function App() {
           dept: role === 'admin' ? 'IT' : 'Kho'
         });
 
-        // Ensure user has a profile in the profiles table
+        // Ensure user has a record in app_users table
         try {
-          const { data: existing } = await supabase.from('profiles').select('id').eq('email', user.email).maybeSingle();
+          const { data: existing } = await supabase.from('app_users').select('id').eq('email', user.email).maybeSingle();
           if (!existing) {
             const initials = user.email.slice(0, 2).toUpperCase();
             const username = user.email.split("@")[0];
-            await supabase.from('profiles').insert({
+            const newUserId = `U${String(Date.now()).slice(-6)}`;
+            await supabase.from('app_users').insert({
+              id: newUserId,
               username: username,
               name: name,
               email: user.email,
@@ -2198,10 +2189,10 @@ export default function App() {
               avatar: initials
             });
           } else {
-            await supabase.from('profiles').update({ last_login: nowStr, status: 'active' }).eq('email', user.email);
+            await supabase.from('app_users').update({ last_login: nowStr, status: 'active' }).eq('email', user.email);
           }
         } catch (e) {
-          console.warn("Failed to insert/ensure profile for logged in user", e);
+          console.warn("Failed to insert/ensure user in app_users", e);
         }
 
         setUsers(prev => {
@@ -2244,12 +2235,12 @@ export default function App() {
         }
       }
 
-      // Fetch users from profiles table
+      // Fetch users from app_users table (syncs across all devices)
       try {
-        const { data: profs, error: profsErr } = await supabase.from('profiles').select('*');
-        if (profsErr) throw profsErr;
-        if (profs && profs.length > 0) {
-          const mapped = profs.map(u => ({
+        const { data: appUsers, error: appUsersErr } = await supabase.from('app_users').select('*').order('created_at', { ascending: true });
+        if (appUsersErr) throw appUsersErr;
+        if (appUsers && appUsers.length > 0) {
+          const mapped = appUsers.map(u => ({
             id: u.id,
             name: u.name,
             username: u.username,
@@ -2266,7 +2257,7 @@ export default function App() {
           localStorage.setItem("wms_users", JSON.stringify(mapped));
         }
       } catch (e) {
-        console.warn("profiles table may not exist yet, using local storage fallback", e);
+        console.warn("app_users table not ready, using localStorage fallback", e);
         const local = localStorage.getItem("wms_users");
         if (local) {
           try {

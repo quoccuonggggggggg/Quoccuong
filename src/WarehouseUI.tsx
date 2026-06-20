@@ -1590,11 +1590,25 @@ function SuppliersPage({ supps, setSupps, showT, logActivity }) {
             </div>
             <div style={{ display:"flex", alignItems:"flex-start", gap:11, marginBottom:12 }}>
               <div className="av" style={{ width:44, height:44, fontSize:13, borderRadius:12, flexShrink:0 }}>{s.code ? s.code.slice(0, 2) : "CC"}</div>
-              <div style={{ flex:1 }}><p style={{ fontWeight:700, fontSize:14 }}>{s.name}</p><p style={{ fontSize:11, color:"var(--t3)", marginTop:1 }}>{s.code}</p><div style={{ marginTop:4 }}>{Array.from({ length:5 }).map((_, i) => <span key={i} style={{ fontSize:12, color:i < s.rating ? "#F59E0B" : "var(--t3)" }}>★</span>)}</div></div>
+              <div style={{ flex:1 }}>
+                <p style={{ fontWeight:700, fontSize:14 }}>{s.name}</p>
+                <div style={{ display:"flex", alignItems:"center", gap:6, marginTop:2 }}>
+                  <span style={{ fontSize:11, color:"var(--t3)" }}>{s.code}</span>
+                  <Bdg s={s.status} />
+                </div>
+                <div style={{ marginTop:4 }}>
+                  {Array.from({ length:5 }).map((_, i) => <span key={i} style={{ fontSize:12, color:i < s.rating ? "#F59E0B" : "var(--t3)" }}>★</span>)}
+                </div>
+              </div>
             </div>
-            {[{ I:Mail, v:s.email }, { I:Phone, v:s.phone }, { I:MapPin, v:s.address }, { I:User, v:s.contact }].map(({ I, v }) => (
+            {[{ I:Mail, v:s.email }, { I:Phone, v:s.phone }, { I:MapPin, v:s.address }, { I:User, v:s.contact }].map(({ I, v }) => v ? (
               <div key={v} style={{ display:"flex", alignItems:"center", gap:7, fontSize:12, color:"var(--t2)", marginBottom:4 }}><I size={11} style={{ flexShrink:0, color:"var(--t3)" }} />{v}</div>
-            ))}
+            ) : null)}
+            <div style={{ display:"flex", alignItems:"center", gap:7, fontSize:12, color:"var(--t2)", marginTop:8, paddingTop:8, borderTop:"1px dashed var(--bd)" }}>
+              <Receipt size={11} style={{ color:"var(--t3)" }} />
+              <span>Công nợ: </span>
+              <strong style={{ color: s.debt > 0 ? "#EF4444" : "#14B8A6" }}>{fmt(s.debt)} VNĐ</strong>
+            </div>
           </div>
         ))}
       </div>
@@ -1609,6 +1623,9 @@ function SuppliersPage({ supps, setSupps, showT, logActivity }) {
               <Fld label="SĐT"><input className="inp" value={form.phone} onChange={e=>setForm({...form,phone:e.target.value})} /></Fld>
               <Fld label="Địa chỉ"><input className="inp" value={form.address} onChange={e=>setForm({...form,address:e.target.value})} /></Fld>
               <Fld label="Người liên hệ"><input className="inp" value={form.contact} onChange={e=>setForm({...form,contact:e.target.value})} /></Fld>
+              <Fld label="Đánh giá"><select className="inp" value={form.rating} onChange={e=>setForm({...form,rating:Number(e.target.value)})}>{[1,2,3,4,5].map(v => <option key={v} value={v}>{v} ★</option>)}</select></Fld>
+              <Fld label="Công nợ (VNĐ)"><input type="number" className="inp" value={form.debt} onChange={e=>setForm({...form,debt:Number(e.target.value) || 0})} /></Fld>
+              <Fld label="Trạng thái"><select className="inp" value={form.status} onChange={e=>setForm({...form,status:e.target.value})}><option value="active">Đang giao dịch</option><option value="inactive">Ngừng giao dịch</option></select></Fld>
             </div>
             <div style={{ display:"flex", gap:8, justifyContent:"flex-end", marginTop:17 }}><button className="btn btnS" onClick={() => setModal(null)}>Hủy</button><button className="btn btnP" onClick={save}>Lưu nhà cung cấp</button></div>
           </div>

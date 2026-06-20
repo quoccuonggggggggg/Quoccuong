@@ -1343,6 +1343,17 @@ function ImportsPage({ imps, setImps, prods, setProds, whs, supps, users, showT,
     logActivity("🗑️", `Xóa phiếu nhập kho: ${sel.id}`);
     setModal(null); setSel(null);
   };
+  const handleCancel = async () => {
+    if (sel.dbId) {
+      const { error } = await supabase.from('orders').update({ trang_thai: 'cancelled' }).eq('id', sel.dbId);
+      if (error) { showT("Lỗi hủy phiếu: " + error.message, "error"); return; }
+    }
+    if (sel.status === "completed") applyDelta(sel.items, -1);
+    setImps(p => p.map(o => o.id === sel.id ? { ...o, status: 'cancelled' } : o));
+    showT(`🚫 Đã hủy phiếu ${sel.id}`, "warn");
+    logActivity("🚫", `Hủy phiếu nhập kho: ${sel.id}`);
+    setModal(null); setSel(null);
+  };
   const aKpi = IMP_KPI.find(k => k.k === kpi);
 
   return (
@@ -1383,8 +1394,11 @@ function ImportsPage({ imps, setImps, prods, setProds, whs, supps, users, showT,
                 <td style={{ fontSize:12, color:"var(--t2)" }}>{o.date}</td>
                 <td><Bdg s={o.status} /></td>
                 <td><div style={{ display:"flex", gap:3, justifyContent:"center" }}>
-                  <button className="btn btnS btnI" onClick={() => { setSel(o); setModal("view"); }}><Eye size={12} /></button>
-                  <button className="btn btnS btnI" onClick={() => { setSel(o); setModal("del"); }}><Trash2 size={12} style={{ color:"#EF4444" }} /></button>
+                  <button className="btn btnS btnI" title="Xem chi tiết" onClick={() => { setSel(o); setModal("view"); }}><Eye size={12} /></button>
+                  {o.status !== "cancelled" && (
+                    <button className="btn btnS btnI" title="Hủy phiếu" onClick={() => { setSel(o); setModal("cancel"); }}><XCircle size={12} style={{ color:"#F59E0B" }} /></button>
+                  )}
+                  <button className="btn btnS btnI" title="Xóa" onClick={() => { setSel(o); setModal("del"); }}><Trash2 size={12} style={{ color:"#EF4444" }} /></button>
                 </div></td>
               </tr>
             ))}
@@ -1396,7 +1410,9 @@ function ImportsPage({ imps, setImps, prods, setProds, whs, supps, users, showT,
         </div>
       </div>
       {modal === "view" && sel && <OrderViewModal order={sel} isImp onClose={() => { setModal(null); setSel(null); }} />}
-      {modal === "add" && <OrderFormModal type="imp" mode="add" order={null} prods={prods} setProds={setProds} whs={whs} supps={supps} users={users} showT={showT} onSave={handleSave} onClose={() => { setModal(null); setSel(null); }} />}      {modal === "del" && sel && <DelModal title="Xóa phiếu nhập?" msg={`Xóa phiếu ${sel.id}?${sel.status === "completed" ? " Tồn kho sẽ bị trừ lại." : ""}`} onOk={handleDel} onClose={() => { setModal(null); setSel(null); }} />}
+      {modal === "add" && <OrderFormModal type="imp" mode="add" order={null} prods={prods} setProds={setProds} whs={whs} supps={supps} users={users} showT={showT} onSave={handleSave} onClose={() => { setModal(null); setSel(null); }} />}
+      {modal === "del" && sel && <DelModal title="Xóa phiếu nhập?" msg={`Xóa phiếu ${sel.id}?${sel.status === "completed" ? " Tồn kho sẽ bị trừ lại." : ""}`} onOk={handleDel} onClose={() => { setModal(null); setSel(null); }} />}
+      {modal === "cancel" && sel && <DelModal title="Hủy phiếu nhập?" msg={`Bạn có chắc chắn muốn hủy phiếu ${sel.id}?${sel.status === "completed" ? " Tồn kho sẽ bị trừ lại." : ""}`} onOk={handleCancel} onClose={() => { setModal(null); setSel(null); }} />}
     </div>
   );
 }
@@ -1476,6 +1492,17 @@ function ExportsPage({ exps, setExps, prods, setProds, whs, users, showT, logAct
     logActivity("🗑️", `Xóa phiếu xuất kho: ${sel.id}`);
     setModal(null); setSel(null);
   };
+  const handleCancel = async () => {
+    if (sel.dbId) {
+      const { error } = await supabase.from('orders').update({ trang_thai: 'cancelled' }).eq('id', sel.dbId);
+      if (error) { showT("Lỗi hủy phiếu: " + error.message, "error"); return; }
+    }
+    if (sel.status === "completed") applyDelta(sel.items, 1);
+    setExps(p => p.map(o => o.id === sel.id ? { ...o, status: 'cancelled' } : o));
+    showT(`🚫 Đã hủy phiếu ${sel.id}`, "warn");
+    logActivity("🚫", `Hủy phiếu xuất kho: ${sel.id}`);
+    setModal(null); setSel(null);
+  };
   const aKpi = EXP_KPI.find(k => k.k === kpi);
 
   return (
@@ -1516,8 +1543,11 @@ function ExportsPage({ exps, setExps, prods, setProds, whs, users, showT, logAct
                 <td style={{ fontSize:12, color:"var(--t2)" }}>{o.date}</td>
                 <td><Bdg s={o.status} /></td>
                 <td><div style={{ display:"flex", gap:3, justifyContent:"center" }}>
-                  <button className="btn btnS btnI" onClick={() => { setSel(o); setModal("view"); }}><Eye size={12} /></button>
-                  <button className="btn btnS btnI" onClick={() => { setSel(o); setModal("del"); }}><Trash2 size={12} style={{ color:"#EF4444" }} /></button>
+                  <button className="btn btnS btnI" title="Xem chi tiết" onClick={() => { setSel(o); setModal("view"); }}><Eye size={12} /></button>
+                  {o.status !== "cancelled" && (
+                    <button className="btn btnS btnI" title="Hủy phiếu" onClick={() => { setSel(o); setModal("cancel"); }}><XCircle size={12} style={{ color:"#F59E0B" }} /></button>
+                  )}
+                  <button className="btn btnS btnI" title="Xóa" onClick={() => { setSel(o); setModal("del"); }}><Trash2 size={12} style={{ color:"#EF4444" }} /></button>
                 </div></td>
               </tr>
             ))}
@@ -1531,6 +1561,7 @@ function ExportsPage({ exps, setExps, prods, setProds, whs, users, showT, logAct
       {modal === "view" && sel && <OrderViewModal order={sel} isImp={false} onClose={() => { setModal(null); setSel(null); }} />}
       {modal === "add" && <OrderFormModal type="exp" mode="add" order={null} prods={prods} setProds={setProds} whs={whs} supps={[]} users={users} showT={showT} onSave={handleSave} onClose={() => { setModal(null); setSel(null); }} />}
       {modal === "del" && sel && <DelModal title="Xóa phiếu xuất?" msg={`Xóa phiếu ${sel.id}?${sel.status === "completed" ? " Tồn kho sẽ được hoàn lại." : ""}`} onOk={handleDel} onClose={() => { setModal(null); setSel(null); }} />}
+      {modal === "cancel" && sel && <DelModal title="Hủy phiếu xuất?" msg={`Bạn có chắc chắn muốn hủy phiếu ${sel.id}?${sel.status === "completed" ? " Tồn kho sẽ được hoàn lại." : ""}`} onOk={handleCancel} onClose={() => { setModal(null); setSel(null); }} />}
     </div>
   );
 }

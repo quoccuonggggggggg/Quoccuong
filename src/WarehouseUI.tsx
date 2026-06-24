@@ -1675,11 +1675,11 @@ function UsersPage({ users, setUsers, showT, loginHistory, logActivity }) {
   const [modal, setModal] = useState(null); const [sel, setSel] = useState(null); const [form, setForm] = useState(EU0); const [errs, setErrs] = useState({});
   const KS = [
     { k:"all",      l:"Tổng tài khoản",  c:"#2563EB", I:Users,       fn:() => true },
-    { k:"active",   l:"Đang hoạt động",  c:"#14B8A6", I:CheckCircle, fn:u => u.status === "active" },
-    { k:"inactive", l:"Bị khóa",         c:"#EF4444", I:Lock,        fn:u => u.status === "inactive" },
     { k:"Admin",    l:"Quản trị viên",   c:"#8B5CF6", I:Shield,      fn:u => u.role === "Admin" },
+    { k:"Manager",  l:"Quản lý",         c:"#F59E0B", I:Users,       fn:u => u.role === "Manager" },
+    { k:"Staff",    l:"Nhân viên",       c:"#14B8A6", I:User,        fn:u => u.role === "Staff" || u.role === "WarehouseStaff" || u.role === "Accountant" },
   ];
-  const fil = useMemo(() => users.filter(u => { const q = srch.toLowerCase(); return (!q || u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q) || u.username.toLowerCase().includes(q)) && (rf === "all" || u.role === rf) && (!kf || kf === "all" || (kf === "active" ? u.status === "active" : kf === "inactive" ? u.status === "inactive" : u.role === kf)); }), [users, srch, rf, kf]);
+  const fil = useMemo(() => users.filter(u => { const q = srch.toLowerCase(); return (!q || u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q) || u.username.toLowerCase().includes(q)) && (rf === "all" || u.role === rf) && (!kf || kf === "all" || (kf === "Staff" ? (u.role === "Staff" || u.role === "WarehouseStaff" || u.role === "Accountant") : u.role === kf)); }), [users, srch, rf, kf]);
   const close    = () => { setModal(null); setSel(null); };
   const validate = () => { const e = {}; if (!form.name.trim()) e.name = "Bắt buộc"; if (!form.email.includes("@")) e.email = "Email không hợp lệ"; if (modal === "add" && form.password.length < 6) e.password = "Tối thiểu 6 ký tự"; setErrs(e); return !Object.keys(e).length; };
   const save = async () => {
@@ -1776,33 +1776,10 @@ function UsersPage({ users, setUsers, showT, loginHistory, logActivity }) {
     close();
   };
 
-  const tog = async u => {
-    const ns = u.status === "active" ? "inactive" : "active";
-    try {
-      const { error } = await supabase.from('app_users').update({ status: ns }).eq('id', u.id);
-      if (error) throw error;
-      setUsers(p => {
-        const next = p.map(x => x.id === u.id ? { ...x, status: ns } : x);
-        localStorage.setItem("wms_users", JSON.stringify(next));
-        return next;
-      });
-      showT(ns === "inactive" ? `🔒 Đã khóa "${u.name}"` : `🔓 Đã mở khóa "${u.name}"`, ns === "inactive" ? "warn" : "success");
-      logActivity(ns === "inactive" ? "🔒" : "🔓", `${ns === "inactive" ? "Khóa" : "Mở khóa"} tài khoản: ${u.name}`);
-    } catch (e) {
-      console.warn("Failed to toggle status in app_users, using local state", e);
-      setUsers(p => {
-        const next = p.map(x => x.id === u.id ? { ...x, status: ns } : x);
-        localStorage.setItem("wms_users", JSON.stringify(next));
-        return next;
-      });
-      showT(ns === "inactive" ? `🔒 Đã khóa "${u.name}" (Local)` : `🔓 Đã mở khóa "${u.name}" (Local)`, ns === "inactive" ? "warn" : "success");
-    }
-  };
-
   return (
     <div className="af">
       <div className="ph">
-        <div><div className="pt">Quản lý người dùng</div><div className="ps">{users.length} tài khoản · {users.filter(u => u.status === "active").length} đang hoạt động</div></div>
+        <div><div className="pt">Quản lý người dùng</div><div className="ps">{users.length} tài khoản</div></div>
         <div style={{ display:"flex", gap:8 }}>
           {kf && <button className="btn btnS" onClick={() => setKf(null)}><X size={12} />Bỏ lọc</button>}
           <button className="btn btnP" onClick={() => { setForm(EU0); setErrs({}); setSel(null); setModal("add"); }}><Plus size={13} />Thêm người dùng</button>
@@ -1821,29 +1798,27 @@ function UsersPage({ users, setUsers, showT, loginHistory, logActivity }) {
       </div>
       <div className="card" style={{ padding:0, overflow:"hidden" }}>
         <table className="dt">
-          <thead><tr><th>Người dùng</th><th>Username</th><th>Liên hệ</th><th>Phòng ban</th><th>Vai trò</th><th>Đăng nhập cuối</th><th>Trạng thái</th><th style={{ textAlign:"center" }}>Thao tác</th></tr></thead>
+          <thead><tr><th>Người dùng</th><th>Username</th><th>Liên hệ</th><th>Phòng ban</th><th>Vai trò</th><th>Đăng nhập cuối</th><th style={{ textAlign:"center" }}>Thao tác</th></tr></thead>
           <tbody>
-            {fil.length === 0 && <tr><td colSpan={8} style={{ textAlign:"center", padding:"32px 0", color:"var(--t3)" }}>Không tìm thấy tài khoản nào</td></tr>}
-            {fil.map(u => { const gr = RGRAD[u.role] || "2563EB,8B5CF6"; const lk = u.status === "inactive"; return (
-              <tr key={u.id} style={{ opacity:lk ? .75 : 1 }}>
-                <td><div style={{ display:"flex", alignItems:"center", gap:9 }}><div style={{ width:34, height:34, borderRadius:"50%", background:`linear-gradient(135deg,#${gr})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:700, color:"#fff", flexShrink:0, filter:lk ? "grayscale(.6)" : "none", position:"relative" }}>{u.avatar}{lk && <div style={{ position:"absolute", bottom:-2, right:-2, width:13, height:13, borderRadius:"50%", background:"#EF4444", display:"flex", alignItems:"center", justifyContent:"center", border:"2px solid var(--b1)" }}><Lock size={7} color="#fff" /></div>}</div><div><p style={{ fontWeight:700, fontSize:13 }}>{u.name}</p><p style={{ fontSize:11, color:"var(--t3)", fontFamily:"monospace" }}>{u.id}</p></div></div></td>
+            {fil.length === 0 && <tr><td colSpan={7} style={{ textAlign:"center", padding:"32px 0", color:"var(--t3)" }}>Không tìm thấy tài khoản nào</td></tr>}
+            {fil.map(u => { const gr = RGRAD[u.role] || "2563EB,8B5CF6"; return (
+              <tr key={u.id}>
+                <td><div style={{ display:"flex", alignItems:"center", gap:9 }}><div style={{ width:34, height:34, borderRadius:"50%", background:`linear-gradient(135deg,#${gr})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:700, color:"#fff", flexShrink:0 }}>{u.avatar}</div><div><p style={{ fontWeight:700, fontSize:13 }}>{u.name}</p><p style={{ fontSize:11, color:"var(--t3)", fontFamily:"monospace" }}>{u.id}</p></div></div></td>
                 <td><span className="mn" style={{ fontSize:12, background:"var(--b2)", padding:"2px 7px", borderRadius:6 }}>@{u.username}</span></td>
                 <td><p style={{ fontSize:12 }}>{u.email}</p><p style={{ fontSize:11, color:"var(--t3)", marginTop:1 }}>{u.phone || "—"}</p></td>
                 <td><p style={{ fontSize:13 }}>{u.dept}</p><p style={{ fontSize:11, color:"var(--t3)" }}>{u.position || ""}</p></td>
                 <td><Bdg r={u.role} /></td>
                 <td style={{ fontSize:12, color:"var(--t2)" }}>{u.lastLogin}</td>
-                <td><div style={{ display:"flex", alignItems:"center", gap:7 }}><Bdg s={u.status} /><div onClick={() => tog(u)} style={{ width:34, height:19, borderRadius:999, background:lk ? "rgba(239,68,68,.2)" : "rgba(20,184,166,.2)", border:`1.5px solid ${lk ? "#EF4444" : "#14B8A6"}`, cursor:"pointer", position:"relative", flexShrink:0 }}><div style={{ width:13, height:13, borderRadius:"50%", background:lk ? "#EF4444" : "#14B8A6", position:"absolute", top:2, left:lk ? 2 : 17, transition:"left .2s" }} /></div></div></td>
                 <td><div style={{ display:"flex", gap:3, justifyContent:"center" }}>
                   <button className="btn btnS btnI" onClick={() => { setSel(u); setModal("view"); }}><Eye size={12} /></button>
                   <button className="btn btnS btnI" onClick={() => { setSel(u); setForm({ ...u, password:"" }); setErrs({}); setModal("edit"); }}><Edit2 size={12} style={{ color:"#2563EB" }} /></button>
-                  <button className="btn btnS btnI" onClick={() => { setSel(u); setModal("lock"); }}>{lk ? <CheckCircle size={12} style={{ color:"#14B8A6" }} /> : <Lock size={12} style={{ color:"#F59E0B" }} />}</button>
                   <button className="btn btnS btnI" onClick={() => { setSel(u); setModal("del"); }}><Trash2 size={12} style={{ color:"#EF4444" }} /></button>
                 </div></td>
               </tr>
             ); })}
           </tbody>
         </table>
-        <div style={{ padding:"8px 13px", borderTop:"1px solid var(--bd)", fontSize:12, color:"var(--t2)", display:"flex", justifyContent:"space-between" }}><span>{fil.length}/{users.length}</span><span>🟢 {users.filter(u => u.status === "active").length} · 🔴 {users.filter(u => u.status === "inactive").length}</span></div>
+        <div style={{ padding:"8px 13px", borderTop:"1px solid var(--bd)", fontSize:12, color:"var(--t2)", display:"flex", justifyContent:"space-between" }}><span>{fil.length}/{users.length} tài khoản</span></div>
       </div>
 
       <div className="card" style={{ marginTop: 17, padding: 20 }}>
@@ -1906,7 +1881,6 @@ function UsersPage({ users, setUsers, showT, loginHistory, logActivity }) {
                 <Fld key={f} label={l} req={req} error={errs[f]}><input className="inp" placeholder={ph} value={form[f] || ""} onChange={e => setForm(p => ({ ...p, [f]:e.target.value }))} style={{ borderColor:errs[f] ? "#EF4444" : undefined }} /></Fld>
               ))}
               <Fld label="Vai trò"><select className="inp" value={form.role} onChange={e => setForm(p => ({ ...p, role:e.target.value }))}>{Object.entries(RMAP).map(([k, v]) => <option key={k} value={k}>{v.l}</option>)}</select></Fld>
-              <Fld label="Trạng thái"><select className="inp" value={form.status} onChange={e => setForm(p => ({ ...p, status:e.target.value }))}><option value="active">Hoạt động</option><option value="inactive">Bị khóa</option></select></Fld>
             </div>
             <div style={{ marginTop:10 }}><Fld label={modal === "add" ? "Mật khẩu (bắt buộc)" : "Mật khẩu mới"} req={modal === "add"} error={errs.password}><input type="password" className="inp" placeholder="Tối thiểu 6 ký tự" value={form.password || ""} onChange={e => setForm(p => ({ ...p, password:e.target.value }))} style={{ borderColor:errs.password ? "#EF4444" : undefined }} /></Fld></div>
             <div style={{ display:"flex", gap:8, justifyContent:"flex-end", marginTop:17 }}><button className="btn btnS" onClick={close}>Hủy</button><button className="btn btnP" onClick={save}>{modal === "add" ? <><Plus size={13} />Tạo tài khoản</> : <><CheckCircle size={13} />Lưu</>}</button></div>
@@ -1917,23 +1891,9 @@ function UsersPage({ users, setUsers, showT, loginHistory, logActivity }) {
       {modal === "view" && sel && createPortal(
         <div className="mo" onClick={e => e.target === e.currentTarget && close()}>
           <div className="mb as"><div className="mt"><User size={17} style={{ color:"#2563EB" }} />Chi tiết tài khoản<button className="btn btnS btnI" style={{ marginLeft:"auto" }} onClick={close}><X size={13} /></button></div>
-          <div style={{ textAlign:"center", padding:"6px 0 16px" }}><div style={{ width:64, height:64, borderRadius:"50%", background:`linear-gradient(135deg,#${RGRAD[sel.role] || "2563EB,8B5CF6"})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, fontWeight:800, color:"#fff", margin:"0 auto 11px", boxShadow:"0 0 22px rgba(37,99,235,.35)" }}>{sel.avatar}</div><p style={{ fontSize:17, fontWeight:800 }}>{sel.name}</p><p style={{ fontSize:12, color:"var(--t2)", marginTop:3 }}>@{sel.username}</p><div style={{ display:"flex", gap:8, justifyContent:"center", marginTop:9 }}><Bdg r={sel.role} /><Bdg s={sel.status} /></div></div>
+          <div style={{ textAlign:"center", padding:"6px 0 16px" }}><div style={{ width:64, height:64, borderRadius:"50%", background:`linear-gradient(135deg,#${RGRAD[sel.role] || "2563EB,8B5CF6"})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, fontWeight:800, color:"#fff", margin:"0 auto 11px", boxShadow:"0 0 22px rgba(37,99,235,.35)" }}>{sel.avatar}</div><p style={{ fontSize:17, fontWeight:800 }}>{sel.name}</p><p style={{ fontSize:12, color:"var(--t2)", marginTop:3 }}>@{sel.username}</p><div style={{ display:"flex", gap:8, justifyContent:"center", marginTop:9 }}><Bdg r={sel.role} /></div></div>
           <div className="g2" style={{ gap:9 }}>{[["Mã",sel.id],["Email",sel.email],["SĐT",sel.phone||"—"],["Phòng ban",sel.dept||"—"],["Chức vụ",sel.position||"—"],["Đăng nhập cuối",sel.lastLogin]].map(([k,v])=><div key={k} style={{background:"var(--b2)",borderRadius:9,padding:"9px 11px"}}><p style={{fontSize:11,color:"var(--t3)",fontWeight:600}}>{k}</p><p style={{fontSize:12,fontWeight:600,marginTop:3}}>{v}</p></div>)}</div>
           <div style={{display:"flex",gap:8,justifyContent:"flex-end",marginTop:17}}><button className="btn btnS" onClick={()=>{setForm({...sel,password:""});setErrs({});setModal("edit")}}><Edit2 size={12}/>Sửa</button><button className="btn btnS" onClick={close}>Đóng</button></div></div>
-        </div>,
-        document.body
-      )}
-      {modal === "lock" && sel && createPortal(
-        <div className="mo" onClick={e => e.target === e.currentTarget && close()}>
-          <div className="mb mb-sm as" style={{ textAlign:"center" }}>
-            <div style={{ width:56, height:56, borderRadius:"50%", background:sel.status === "active" ? "rgba(245,158,11,.12)" : "rgba(20,184,166,.12)", border:`2px solid ${sel.status === "active" ? "rgba(245,158,11,.4)" : "rgba(20,184,166,.4)"}`, display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 13px" }}>{sel.status === "active" ? <Lock size={24} color="#F59E0B" /> : <CheckCircle size={24} color="#14B8A6" />}</div>
-            <p style={{ fontSize:16, fontWeight:800, marginBottom:7 }}>{sel.status === "active" ? "Khóa tài khoản?" : "Mở khóa tài khoản?"}</p>
-            <p style={{ fontSize:13, color:"var(--t2)", lineHeight:1.6 }}>Tài khoản <strong>"{sel.name}"</strong> sẽ {sel.status === "active" ? "bị khóa — không thể đăng nhập." : "được mở khóa lại."}</p>
-            <div style={{ display:"flex", gap:9, justifyContent:"center", marginTop:19 }}>
-              <button className="btn btnS" onClick={close} style={{ flex:1 }}>Hủy</button>
-              <button className="btn" onClick={() => { tog(sel); close(); }} style={{ flex:1, background:sel.status === "active" ? "linear-gradient(135deg,#F59E0B,#D97706)" : "linear-gradient(135deg,#14B8A6,#0D9488)", color:"#fff" }}>{sel.status === "active" ? <><Lock size={12} />Khóa</> : <><CheckCircle size={12} />Mở khóa</>}</button>
-            </div>
-          </div>
         </div>,
         document.body
       )}

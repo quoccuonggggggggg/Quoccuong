@@ -5,6 +5,7 @@ import { supabase } from './lib/supabase';
 import type { Session } from '@supabase/supabase-js';
 
 import Login from './pages/Login';
+import ResetPassword from './pages/ResetPassword';
 import WarehouseUI from './WarehouseUI'; // The new UI
 
 function App() {
@@ -12,6 +13,12 @@ function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Detect password recovery from the URL hash immediately
+    if (window.location.hash.includes('type=recovery') || window.location.hash.includes('recovery_token=')) {
+      window.location.href = '/reset-password' + window.location.hash;
+      return;
+    }
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setLoading(false);
@@ -19,8 +26,11 @@ function App() {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
+      if (event === 'PASSWORD_RECOVERY') {
+        window.location.href = '/reset-password';
+      }
     });
 
     return () => subscription.unsubscribe();
@@ -42,6 +52,10 @@ function App() {
           <Route 
             path="/login" 
             element={!session ? <Login /> : <Navigate to="/" replace />} 
+          />
+          <Route 
+            path="/reset-password" 
+            element={<ResetPassword />} 
           />
           <Route 
             path="/*" 

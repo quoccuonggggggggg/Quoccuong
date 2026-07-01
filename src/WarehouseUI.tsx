@@ -342,7 +342,7 @@ const Fld = ({ label, req, error, children }) => (
 ═══════════════════════════════════════════════════════════ */
 const MENU = [
   { sec:"TỔNG QUAN",   items:[{ id:"dashboard",  l:"Dashboard",    I:LayoutDashboard }] },
-  { sec:"QUẢN LÝ KHO", items:[{ id:"imports", l:"Nhập kho", I:ArrowDownToLine, b:2 }, { id:"exports", l:"Xuất kho", I:ArrowUpFromLine }, { id:"warehouses", l:"Kho hàng",   I:Warehouse }, { id:"products",   l:"Sản phẩm",    I:Package }] },
+  { sec:"QUẢN LÝ KHO", items:[{ id:"imports", l:"Nhập kho", I:ArrowDownToLine }, { id:"exports", l:"Xuất kho", I:ArrowUpFromLine }, { id:"warehouses", l:"Kho hàng",   I:Warehouse }, { id:"products",   l:"Sản phẩm",    I:Package }] },
   { sec:"ĐỐI TÁC",     items:[{ id:"suppliers",  l:"Nhà cung cấp", I:Truck }, { id:"users", l:"Người dùng", I:Users }] },
   { sec:"PHÂN TÍCH",   items:[{ id:"reports",    l:"Báo cáo",     I:BarChart3 }, { id:"activity", l:"Nhật ký HĐ", I:Activity }] },
   { sec:"CÀI ĐẶT",     items:[{ id:"settings",   l:"Cài đặt",     I:Settings }] },
@@ -750,7 +750,7 @@ function ProductsPage({ prods, setProds, whs, showT }) {
   const pages = Math.ceil(filtered.length / PER) || 1;
   const shown = filtered.slice((pg - 1) * PER, pg * PER);
 
-  const validate = () => { const e = {}; if (!form.name.trim()) e.name = "Bắt buộc"; if (!form.sku.trim()) e.sku = "Bắt buộc"; if (isNaN(+form.buyPrice) || +form.buyPrice <= 0) e.buyPrice = "Không hợp lệ"; if (isNaN(+form.sellPrice) || +form.sellPrice <= 0) e.sellPrice = "Không hợp lệ"; if (isNaN(+form.stock) || +form.stock < 0) e.stock = "Không hợp lệ"; setErrs(e); return !Object.keys(e).length; };
+  const validate = () => { const e = {}; if (!form.name.trim()) e.name = "Bắt buộc"; if (!form.sku.trim()) e.sku = "Bắt buộc"; if (isNaN(+form.buyPrice) || +form.buyPrice <= 0) e.buyPrice = "Không hợp lệ"; if (isNaN(+form.sellPrice) || +form.sellPrice <= 0) e.sellPrice = "Không hợp lệ"; if (isNaN(+form.stock) || +form.stock < 0) e.stock = "Tồn kho không được nhỏ hơn 0"; setErrs(e); return !Object.keys(e).length; };
   const save = async () => {
     if (!validate()) return;
     const st = +form.stock;
@@ -878,7 +878,7 @@ function ProductsPage({ prods, setProds, whs, showT }) {
               <Fld label="Kho chứa"><select className="inp" value={form.wid} onChange={e => setForm(p => ({ ...p, wid:e.target.value }))}>{[...whs].sort((a, b) => a.name.localeCompare(b.name)).map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</select></Fld>
               <Fld label="Giá nhập (₫)" req error={errs.buyPrice}><input className="inp" placeholder="25000000" value={form.buyPrice} onChange={e => setForm(p => ({ ...p, buyPrice:e.target.value }))} style={{ borderColor:errs.buyPrice ? "#EF4444" : undefined }} /></Fld>
               <Fld label="Giá bán (₫)" req error={errs.sellPrice}><input className="inp" placeholder="29500000" value={form.sellPrice} onChange={e => setForm(p => ({ ...p, sellPrice:e.target.value }))} style={{ borderColor:errs.sellPrice ? "#EF4444" : undefined }} /></Fld>
-              <Fld label="Tồn kho hiện tại" req error={errs.stock}><input className="inp" placeholder="0" value={form.stock} onChange={e => setForm(p => ({ ...p, stock:e.target.value }))} style={{ borderColor:errs.stock ? "#EF4444" : undefined }} /></Fld>
+              <Fld label="Tồn kho hiện tại" req error={errs.stock}><input type="number" min="0" className="inp" placeholder="0" value={form.stock} onChange={e => setForm(p => ({ ...p, stock:e.target.value }))} style={{ borderColor:errs.stock ? "#EF4444" : undefined }} /></Fld>
               <Fld label="Vị trí trong kho"><input className="inp" placeholder="A-01-03" value={form.loc} onChange={e => setForm(p => ({ ...p, loc:e.target.value }))} /></Fld>
             </div>
             {form.stock !== "" && !isNaN(+form.stock) && (
@@ -1107,7 +1107,30 @@ function OrderFormModal({ type, mode, order, prods, setProds, whs, supps, users,
   };
   const upItem  = (idx, field, val) => setForm(p => { const items = [...p.items]; items[idx] = { ...items[idx], [field]:field === "qty" || field === "price" ? +val : val }; if (field === "pid") { const pr = prods.find(x => x.id === val); if (pr) { items[idx].pname = pr.name; items[idx].price = isImp ? pr.buyPrice : pr.sellPrice; } } return { ...p, items }; });
   const rmItem  = idx => setForm(p => ({ ...p, items:p.items.filter((_, i) => i !== idx) }));
-  const validate = () => { const e = {}; if (isImp && !form.sid) e.sid = "Chọn nhà CC"; if (!isImp && !form.customer?.trim()) e.customer = "Bắt buộc"; if (form.items.length === 0) e.items = "Cần ít nhất 1 sản phẩm"; setErrs(e); return !Object.keys(e).length; };
+  const validate = () => {
+    const e = {};
+    if (isImp && !form.sid) e.sid = "Chọn nhà CC";
+    if (!isImp && !form.customer?.trim()) e.customer = "Bắt buộc";
+    if (form.items.length === 0) {
+      e.items = "Cần ít nhất 1 sản phẩm";
+    } else if (!isImp && form.status === "completed") {
+      for (const it of form.items) {
+        const pr = prods.find(x => x.id === it.pid);
+        if (!pr) continue;
+        let currentStock = pr.stock;
+        if (order && order.status === "completed") {
+          const originalItem = order.items.find(oi => oi.pid === it.pid);
+          if (originalItem) currentStock += originalItem.qty;
+        }
+        if (currentStock < it.qty) {
+          e.items = `Sản phẩm "${pr.name}" không đủ tồn kho (Yêu cầu: ${it.qty}, Hiện có: ${currentStock})`;
+          break;
+        }
+      }
+    }
+    setErrs(e);
+    return !Object.keys(e).length;
+  };
 
   return createPortal(
     <div className="mo" onClick={e => e.target === e.currentTarget && onClose()}>
@@ -1207,7 +1230,7 @@ function OrderFormModal({ type, mode, order, prods, setProds, whs, supps, users,
                         <input type="number" min="1" className="inp" style={{ width:65, padding:"4px 7px", fontSize:12, textAlign:"right" }} value={it.qty} onChange={e => upItem(idx, "qty", e.target.value)} />
                       </td>
                       <td style={{ padding:"7px 11px", textAlign:"right" }}>
-                        <input type="number" min="0" className="inp" style={{ width:105, padding:"4px 7px", fontSize:12, textAlign:"right" }} value={it.price} onChange={e => upItem(idx, "price", e.target.value)} />
+                        <input type="number" min="0" className="inp" style={{ width:105, padding:"4px 7px", fontSize:12, textAlign:"right", background:"var(--b3)", cursor:"not-allowed" }} value={it.price} readOnly />
                       </td>
                       <td style={{ padding:"7px 11px", textAlign:"right", fontWeight:700, color:"#14B8A6" }}>{fmtM((+it.qty || 0) * (+it.price || 0))}</td>
                       <td style={{ padding:"7px 11px" }}><button className="btn btnS btnI" onClick={() => rmItem(idx)}><X size={11} style={{ color:"#EF4444" }} /></button></td>
@@ -1278,8 +1301,16 @@ const IMP_KPI = [
 
 function ImportsPage({ imps, setImps, prods, setProds, whs, supps, users, showT, logActivity }) {
   const [kpi, setKpi]     = useState(null); const [modal, setModal] = useState(null); const [sel, setSel] = useState(null); const [srch, setSrch] = useState("");
+  const [sortOrder, setSortOrder] = useState("newest");
   const cnt = k => k === "all" ? imps.length : imps.filter(o => o.status === k).length;
-  const filtered = useMemo(() => imps.filter(o => { const q = srch.toLowerCase(); return (!q || o.id.toLowerCase().includes(q) || (o.sname || "").toLowerCase().includes(q)) && (!kpi || kpi === "all" || o.status === kpi); }), [imps, kpi, srch]);
+  const filtered = useMemo(() => {
+    const list = imps.filter(o => { const q = srch.toLowerCase(); return (!q || o.id.toLowerCase().includes(q) || (o.sname || "").toLowerCase().includes(q)) && (!kpi || kpi === "all" || o.status === kpi); });
+    return list.sort((a, b) => {
+      const dateA = new Date(a.date).getTime();
+      const dateB = new Date(b.date).getTime();
+      return sortOrder === "newest" ? dateB - dateA : dateA - dateB;
+    });
+  }, [imps, kpi, srch, sortOrder]);
 
   const applyDelta = (items, delta) => setProds(p => p.map(prod => { const it = items.find(i => i.pid === prod.id); if (!it) return prod; const ns = Math.max(0, prod.stock + delta * it.qty); return { ...prod, stock:ns, status:sSt(ns), upd:today() }; }));
   const handleSave = async (fd) => {
@@ -1368,9 +1399,15 @@ function ImportsPage({ imps, setImps, prods, setProds, whs, supps, users, showT,
       <div className="g5" style={{ marginBottom:13 }}>{IMP_KPI.map(cfg => <KpiCard key={cfg.k} label={cfg.l} count={cnt(cfg.k)} color={cfg.c} Icon={cfg.I} active={kpi === cfg.k} onClick={() => setKpi(kpi === cfg.k ? null : cfg.k)} />)}</div>
       {aKpi && kpi && <div className="fbn" style={{ background:`${aKpi.c}10`, border:`1px solid ${aKpi.c}30` }}><aKpi.I size={14} style={{ color:aKpi.c }} /><span style={{ fontSize:13, fontWeight:600, color:aKpi.c }}>Đang lọc: {aKpi.l}</span><span style={{ fontSize:12, color:"var(--t2)" }}>— {filtered.length} phiếu</span><button onClick={() => setKpi(null)} style={{ marginLeft:"auto", background:"none", border:"none", cursor:"pointer", color:"var(--t3)", fontSize:12, display:"flex", alignItems:"center", gap:3 }}><X size={11} />Bỏ lọc</button></div>}
       <div className="card" style={{ marginBottom:10, padding:"9px 13px" }}>
-        <div style={{ display:"flex", alignItems:"center", gap:7, background:"var(--b2)", border:"1px solid var(--bd2)", borderRadius:9, padding:"6px 11px" }}>
-          <Search size={13} color="var(--t3)" /><input value={srch} onChange={e => setSrch(e.target.value)} placeholder="Tìm mã phiếu, nhà cung cấp..." style={{ background:"none", border:"none", outline:"none", fontSize:13, color:"var(--t1)", flex:1, fontFamily:"inherit" }} />
-          {srch && <button onClick={() => setSrch("")} style={{ background:"none", border:"none", cursor:"pointer", color:"var(--t3)" }}><X size={12} /></button>}
+        <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+          <div style={{ flex:1, minWidth:180, display:"flex", alignItems:"center", gap:7, background:"var(--b2)", border:"1px solid var(--bd2)", borderRadius:9, padding:"6px 11px" }}>
+            <Search size={13} color="var(--t3)" /><input value={srch} onChange={e => setSrch(e.target.value)} placeholder="Tìm mã phiếu, nhà cung cấp..." style={{ background:"none", border:"none", outline:"none", fontSize:13, color:"var(--t1)", flex:1, fontFamily:"inherit" }} />
+            {srch && <button onClick={() => setSrch("")} style={{ background:"none", border:"none", cursor:"pointer", color:"var(--t3)" }}><X size={12} /></button>}
+          </div>
+          <select className="inp" value={sortOrder} onChange={e => setSortOrder(e.target.value)} style={{ width:"auto" }}>
+            <option value="newest">Ngày gần nhất</option>
+            <option value="oldest">Ngày xa nhất</option>
+          </select>
         </div>
       </div>
       <div className="card" style={{ padding:0, overflow:"hidden" }}>
@@ -1428,8 +1465,16 @@ const EXP_KPI = [
 
 function ExportsPage({ exps, setExps, prods, setProds, whs, users, showT, logActivity }) {
   const [kpi, setKpi]     = useState(null); const [modal, setModal] = useState(null); const [sel, setSel] = useState(null); const [srch, setSrch] = useState("");
+  const [sortOrder, setSortOrder] = useState("newest");
   const cnt = k => k === "all" ? exps.length : exps.filter(o => o.status === k).length;
-  const filtered = useMemo(() => exps.filter(o => { const q = srch.toLowerCase(); return (!q || o.id.toLowerCase().includes(q) || (o.customer || "").toLowerCase().includes(q)) && (!kpi || kpi === "all" || o.status === kpi); }), [exps, kpi, srch]);
+  const filtered = useMemo(() => {
+    const list = exps.filter(o => { const q = srch.toLowerCase(); return (!q || o.id.toLowerCase().includes(q) || (o.customer || "").toLowerCase().includes(q)) && (!kpi || kpi === "all" || o.status === kpi); });
+    return list.sort((a, b) => {
+      const dateA = new Date(a.date).getTime();
+      const dateB = new Date(b.date).getTime();
+      return sortOrder === "newest" ? dateB - dateA : dateA - dateB;
+    });
+  }, [exps, kpi, srch, sortOrder]);
 
   const applyDelta = (items, delta) => setProds(p => p.map(prod => { const it = items.find(i => i.pid === prod.id); if (!it) return prod; const ns = Math.max(0, prod.stock + delta * it.qty); return { ...prod, stock:ns, status:sSt(ns), upd:today() }; }));
   const handleSave = async (fd) => {
@@ -1517,9 +1562,15 @@ function ExportsPage({ exps, setExps, prods, setProds, whs, users, showT, logAct
       <div className="g5" style={{ marginBottom:13 }}>{EXP_KPI.map(cfg => <KpiCard key={cfg.k} label={cfg.l} count={cnt(cfg.k)} color={cfg.c} Icon={cfg.I} active={kpi === cfg.k} onClick={() => setKpi(kpi === cfg.k ? null : cfg.k)} />)}</div>
       {aKpi && kpi && <div className="fbn" style={{ background:`${aKpi.c}10`, border:`1px solid ${aKpi.c}30` }}><aKpi.I size={14} style={{ color:aKpi.c }} /><span style={{ fontSize:13, fontWeight:600, color:aKpi.c }}>Đang lọc: {aKpi.l}</span><span style={{ fontSize:12, color:"var(--t2)" }}>— {filtered.length} phiếu</span><button onClick={() => setKpi(null)} style={{ marginLeft:"auto", background:"none", border:"none", cursor:"pointer", color:"var(--t3)", fontSize:12, display:"flex", alignItems:"center", gap:3 }}><X size={11} />Bỏ lọc</button></div>}
       <div className="card" style={{ marginBottom:10, padding:"9px 13px" }}>
-        <div style={{ display:"flex", alignItems:"center", gap:7, background:"var(--b2)", border:"1px solid var(--bd2)", borderRadius:9, padding:"6px 11px" }}>
-          <Search size={13} color="var(--t3)" /><input value={srch} onChange={e => setSrch(e.target.value)} placeholder="Tìm mã phiếu, khách hàng..." style={{ background:"none", border:"none", outline:"none", fontSize:13, color:"var(--t1)", flex:1, fontFamily:"inherit" }} />
-          {srch && <button onClick={() => setSrch("")} style={{ background:"none", border:"none", cursor:"pointer", color:"var(--t3)" }}><X size={12} /></button>}
+        <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+          <div style={{ flex:1, minWidth:180, display:"flex", alignItems:"center", gap:7, background:"var(--b2)", border:"1px solid var(--bd2)", borderRadius:9, padding:"6px 11px" }}>
+            <Search size={13} color="var(--t3)" /><input value={srch} onChange={e => setSrch(e.target.value)} placeholder="Tìm mã phiếu, khách hàng..." style={{ background:"none", border:"none", outline:"none", fontSize:13, color:"var(--t1)", flex:1, fontFamily:"inherit" }} />
+            {srch && <button onClick={() => setSrch("")} style={{ background:"none", border:"none", cursor:"pointer", color:"var(--t3)" }}><X size={12} /></button>}
+          </div>
+          <select className="inp" value={sortOrder} onChange={e => setSortOrder(e.target.value)} style={{ width:"auto" }}>
+            <option value="newest">Ngày gần nhất</option>
+            <option value="oldest">Ngày xa nhất</option>
+          </select>
         </div>
       </div>
       <div className="card" style={{ padding:0, overflow:"hidden" }}>

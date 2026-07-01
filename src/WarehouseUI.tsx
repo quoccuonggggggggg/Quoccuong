@@ -756,7 +756,7 @@ function Dashboard({ prods, whs, imps, exps, dark, logActivity }) {
 /* ═══════════════════════════════════════════════════════════
    PRODUCTS PAGE — full CRUD
 ═══════════════════════════════════════════════════════════ */
-const EP0 = { name:"", sku:"", category:"Điện tử", buyPrice:"", sellPrice:"", stock:"", wid:"WH001", loc:"", img:"📦", desc:"" };
+const EP0 = { name:"", sku:"", category:"Điện tử", buyPrice:"", sellPrice:"", stock:"0", wid:"WH001", loc:"", img:"📦", desc:"" };
 
 function ProductsPage({ prods, setProds, whs, showT }) {
   const [srch, setSrch]   = useState(""); const [catF, setCatF] = useState("all"); const [whF, setWhF] = useState("all"); const [stF, setStF] = useState("all");
@@ -843,7 +843,7 @@ function ProductsPage({ prods, setProds, whs, showT }) {
         <button className="btn btnP" onClick={() => {
           const defaultWh = whs[0]?.id || "";
           const autoLoc = generateUniqueLocation(defaultWh, whs, prods);
-          setForm({ ...EP0, wid: defaultWh, loc: autoLoc, category: dynamicCats[0] || "Điện tử" });
+          setForm({ ...EP0, wid: defaultWh, loc: autoLoc, category: dynamicCats[0] || "Điện tử", stock: "0" });
           setErrs({});
           setSel(null);
           setModal("add");
@@ -877,7 +877,6 @@ function ProductsPage({ prods, setProds, whs, showT }) {
                 <td><p style={{ fontSize:12 }}>{wh?.name || "—"}</p><p style={{ fontSize:11, color:"var(--t3)" }}>{p.loc}</p></td>
                 <td><Bdg s={p.status} /></td>
                 <td><div style={{ display:"flex", gap:3 }}>
-                  <button className="btn btnS btnI" onClick={() => { setSel(p); setForm({ ...p, buyPrice:String(p.buyPrice), sellPrice:String(p.sellPrice), stock:String(p.stock) }); setErrs({}); setModal("edit"); }} title="Sửa"><Edit2 size={12} style={{ color:"#2563EB" }} /></button>
                   <button className="btn btnS btnI" onClick={() => { setSel(p); setModal("del"); }} title="Xóa"><Trash2 size={12} style={{ color:"#EF4444" }} /></button>
                 </div></td>
               </tr>
@@ -923,14 +922,8 @@ function ProductsPage({ prods, setProds, whs, showT }) {
               </Fld>
               <Fld label="Giá nhập (₫)" req error={errs.buyPrice}><input className="inp" placeholder="25000000" value={form.buyPrice} onChange={e => setForm(p => ({ ...p, buyPrice:e.target.value }))} style={{ borderColor:errs.buyPrice ? "#EF4444" : undefined }} /></Fld>
               <Fld label="Giá bán (₫)" req error={errs.sellPrice}><input className="inp" placeholder="29500000" value={form.sellPrice} onChange={e => setForm(p => ({ ...p, sellPrice:e.target.value }))} style={{ borderColor:errs.sellPrice ? "#EF4444" : undefined }} /></Fld>
-              <Fld label="Tồn kho hiện tại" req error={errs.stock}><input type="number" min="0" className="inp" placeholder="0" value={form.stock} onChange={e => setForm(p => ({ ...p, stock:e.target.value }))} style={{ borderColor:errs.stock ? "#EF4444" : undefined }} /></Fld>
               <Fld label="Vị trí trong kho"><input className="inp" placeholder="A-01-03" value={form.loc} onChange={e => setForm(p => ({ ...p, loc:e.target.value }))} /></Fld>
             </div>
-            {form.stock !== "" && !isNaN(+form.stock) && (
-              <div style={{ marginTop:10, padding:"9px 13px", borderRadius:10, background:"var(--b2)" }}>
-                <span style={{ fontSize:12, fontWeight:600 }}>Trạng thái tự động: </span><Bdg s={sSt(+form.stock)} />
-              </div>
-            )}
             <div style={{ display:"flex", gap:8, justifyContent:"flex-end", marginTop:17 }}>
               <button className="btn btnS" onClick={() => setModal(null)}>Hủy</button>
               <button className="btn btnP" onClick={save}>{modal === "add" ? <><Plus size={13} />Thêm sản phẩm</> : <><CheckCircle size={13} />Lưu thay đổi</>}</button>

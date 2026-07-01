@@ -275,6 +275,36 @@ const genId = (p, l) => {
 const sSt   = s => s === 0 ? "out" : s <= 5 ? "critical" : s <= 10 ? "low" : "active";
 const orderTotal = items => items.reduce((s, i) => s + (i.qty||0)*(i.price||0), 0);
 
+const getWhPrefix = (whName) => {
+  if (!whName) return "X";
+  const match = whName.match(/Kho\s+([A-Z0-9]+)/i);
+  if (match) return match[1].toUpperCase();
+  return whName.charAt(0).toUpperCase();
+};
+
+const generateUniqueLocation = (whId, whs, prods) => {
+  const wh = whs.find(w => w.id === whId);
+  if (!wh) return "";
+  const prefix = getWhPrefix(wh.name);
+  const maxZones = wh.zones || 5;
+  const existingLocs = new Set(
+    prods
+      .filter(p => p.wid === whId && p.loc)
+      .map(p => p.loc.trim().toUpperCase())
+  );
+  for (let z = 1; z <= maxZones; z++) {
+    const zoneStr = String(z).padStart(2, '0');
+    for (let pos = 1; pos <= 99; pos++) {
+      const posStr = String(pos).padStart(2, '0');
+      const candidate = `${prefix}-${zoneStr}-${posStr}`;
+      if (!existingLocs.has(candidate)) {
+        return candidate;
+      }
+    }
+  }
+  return `${prefix}-99-99`;
+};
+
 const STMAP = { active:{l:"Hoạt động",c:"bg"}, low:{l:"Tồn thấp",c:"by"}, critical:{l:"Sắp hết hàng",c:"br"}, out:{l:"Hết hàng",c:"br"}, inactive:{l:"Ngừng HĐ",c:"bgr"}, completed:{l:"Hoàn thành",c:"bg"}, processing:{l:"Đang xử lý",c:"bb"}, pending:{l:"Chờ duyệt",c:"by"}, cancelled:{l:"Đã hủy",c:"bgr"} };
 const RMAP  = { Admin:{l:"Admin",c:"bp"}, Manager:{l:"Quản lý",c:"bb"}, Staff:{l:"Nhân viên",c:"bg"}, WarehouseStaff:{l:"NV Kho",c:"bc"}, Accountant:{l:"Kế toán",c:"by"} };
 const RGRAD = { Admin:"8B5CF6,2563EB", Manager:"2563EB,06B6D4", Staff:"14B8A6,2563EB", WarehouseStaff:"06B6D4,14B8A6", Accountant:"F59E0B,EF4444" };
@@ -810,7 +840,14 @@ function ProductsPage({ prods, setProds, whs, showT }) {
     <div className="af">
       <div className="ph">
         <div><div className="pt">Quản lý sản phẩm</div><div className="ps">{filtered.length} SP · tổng tồn: {prods.reduce((s, p) => s + p.stock, 0)} đv</div></div>
-        <button className="btn btnP" onClick={() => { setForm({ ...EP0, category: dynamicCats[0] || "Điện tử" }); setErrs({}); setSel(null); setModal("add"); }}><Plus size={13} />Thêm sản phẩm</button>
+        <button className="btn btnP" onClick={() => {
+          const defaultWh = whs[0]?.id || "";
+          const autoLoc = generateUniqueLocation(defaultWh, whs, prods);
+          setForm({ ...EP0, wid: defaultWh, loc: autoLoc, category: dynamicCats[0] || "Điện tử" });
+          setErrs({});
+          setSel(null);
+          setModal("add");
+        }}><Plus size={13} />Thêm sản phẩm</button>
       </div>
       <div className="card" style={{ marginBottom:11, padding:"10px 14px" }}>
         <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }}>
@@ -875,7 +912,15 @@ function ProductsPage({ prods, setProds, whs, showT }) {
                   {dynamicCats.map(c => <option key={c} value={c} />)}
                 </datalist>
               </Fld>
-              <Fld label="Kho chứa"><select className="inp" value={form.wid} onChange={e => setForm(p => ({ ...p, wid:e.target.value }))}>{[...whs].sort((a, b) => a.name.localeCompare(b.name)).map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</select></Fld>
+              <Fld label="Kho chứa">
+                <select className="inp" value={form.wid} onChange={e => {
+                  const newWhId = e.target.value;
+                  const autoLoc = generateUniqueLocation(newWhId, whs, prods);
+                  setForm(p => ({ ...p, wid: newWhId, loc: autoLoc }));
+                }}>
+                  {[...whs].sort((a, b) => a.name.localeCompare(b.name)).map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+                </select>
+              </Fld>
               <Fld label="Giá nhập (₫)" req error={errs.buyPrice}><input className="inp" placeholder="25000000" value={form.buyPrice} onChange={e => setForm(p => ({ ...p, buyPrice:e.target.value }))} style={{ borderColor:errs.buyPrice ? "#EF4444" : undefined }} /></Fld>
               <Fld label="Giá bán (₫)" req error={errs.sellPrice}><input className="inp" placeholder="29500000" value={form.sellPrice} onChange={e => setForm(p => ({ ...p, sellPrice:e.target.value }))} style={{ borderColor:errs.sellPrice ? "#EF4444" : undefined }} /></Fld>
               <Fld label="Tồn kho hiện tại" req error={errs.stock}><input type="number" min="0" className="inp" placeholder="0" value={form.stock} onChange={e => setForm(p => ({ ...p, stock:e.target.value }))} style={{ borderColor:errs.stock ? "#EF4444" : undefined }} /></Fld>

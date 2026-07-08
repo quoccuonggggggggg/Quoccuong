@@ -119,8 +119,17 @@ const Login = () => {
 
   if (isForgotPassword) {
     return (
-      <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-        <div className="sm:mx-auto sm:w-full sm:max-w-md">
+      <div className="min-h-screen flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative overflow-hidden">
+        <div 
+          className="absolute inset-0 z-0 bg-cover bg-center" 
+          style={{ 
+            backgroundImage: 'url("/bg-login.jpg")', 
+            filter: 'blur(5px) brightness(0.9)', 
+            opacity: 0.25 
+          }} 
+        />
+        <div className="relative z-10 w-full">
+          <div className="sm:mx-auto sm:w-full sm:max-w-md">
           <div className="flex justify-center">
             <div className="bg-blue-600 p-3 rounded-xl">
               <Package className="h-10 w-10 text-white" />
@@ -289,12 +298,22 @@ const Login = () => {
           </div>
         </div>
       </div>
-    );
-  }
+    </div>
+  );
+}
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
+    <div className="min-h-screen flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative overflow-hidden">
+      <div 
+        className="absolute inset-0 z-0 bg-cover bg-center" 
+        style={{ 
+          backgroundImage: 'url("/bg-login.jpg")', 
+          filter: 'blur(5px) brightness(0.9)', 
+          opacity: 0.25 
+        }} 
+      />
+      <div className="relative z-10 w-full">
+        <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <div className="flex justify-center">
           <div className="bg-blue-600 p-3 rounded-xl">
             <Package className="h-10 w-10 text-white" />
@@ -385,7 +404,8 @@ const Login = () => {
         </div>
       </div>
     </div>
-  );
+  </div>
+);
 };
 
 export default Login;

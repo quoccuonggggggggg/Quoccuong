@@ -121,7 +121,7 @@ const Login = () => {
     return (
       <div className="min-h-screen flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative overflow-hidden">
         <div 
-          className="absolute inset-0 z-0 bg-contain bg-no-repeat bg-center" 
+          className="absolute inset-0 z-0 bg-cover bg-center" 
           style={{ 
             backgroundImage: 'url("/bg-login.jpg")', 
             filter: 'blur(0px) brightness(0.9)', 
@@ -302,7 +302,7 @@ const Login = () => {
   return (
     <div className="min-h-screen flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative overflow-hidden">
       <div 
-        className="absolute inset-0 z-0 bg-contain bg-no-repeat bg-center" 
+        className="absolute inset-0 z-0 bg-cover bg-center" 
         style={{ 
           backgroundImage: 'url("/bg-login.jpg")', 
           filter: 'blur(0px) brightness(0.9)', 

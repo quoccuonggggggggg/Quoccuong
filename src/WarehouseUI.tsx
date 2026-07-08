@@ -425,12 +425,14 @@ function Sidebar({ cur, onNav, col, onCol, sbH, onLogout, adminProfile }) {
   const filteredMenu = useMemo(() => {
     if (role === 'import_staff') {
       return [
-        { sec: "QUẢN LÝ KHO", items: [ { id: "imports", l: "Nhập kho", I: ArrowDownToLine } ] }
+        { sec: "QUẢN LÝ KHO", items: [ { id: "imports", l: "Nhập kho", I: ArrowDownToLine } ] },
+        { sec: "PHÂN TÍCH", items: [ { id: "reports", l: "Báo cáo", I: BarChart3 } ] }
       ];
     }
     if (role === 'export_staff') {
       return [
-        { sec: "QUẢN LÝ KHO", items: [ { id: "exports", l: "Xuất kho", I: ArrowUpFromLine } ] }
+        { sec: "QUẢN LÝ KHO", items: [ { id: "exports", l: "Xuất kho", I: ArrowUpFromLine } ] },
+        { sec: "PHÂN TÍCH", items: [ { id: "reports", l: "Báo cáo", I: BarChart3 } ] }
       ];
     }
     if (role === 'warehouse_manager') {
@@ -663,8 +665,8 @@ function Dashboard({ prods, whs, imps, exps, dark, logActivity }) {
         <div><div className="pt">Tổng quan hệ thống</div><div className="ps">Dữ liệu thực · Cập nhật liên tục</div></div>
         <button className="btn btnP" onClick={exportDashboardReport}><Download size={13} />Xuất báo cáo</button>
       </div>
-      <div className="g4" style={{ marginBottom:17 }}>
-        {[{ l:"Tổng sản phẩm", v:`${prods.length} SP`, s:`${tStock} đv tồn`, c:"#2563EB", I:Package }, { l:"Giá trị tồn kho", v:fmtM(tVal), s:"Tổng giá nhập", c:"#06B6D4", I:DollarSign }, { l:"Đơn chờ xử lý", v:`${pend} đơn`, s:"Nhập + xuất", c:"#8B5CF6", I:Clock }, { l:"Cảnh báo tồn kho", v:`${lowN} SP`, s:"Cần bổ sung", c:"#EF4444", I:AlertTriangle }].map(({ l, v, s, c, I }) => (
+      <div className="g3" style={{ marginBottom:17 }}>
+        {[{ l:"Tổng sản phẩm", v:`${prods.length} SP`, s:`${tStock} đv tồn`, c:"#2563EB", I:Package }, { l:"Giá trị tồn kho", v:fmtM(tVal), s:"Tổng giá nhập", c:"#06B6D4", I:DollarSign }, { l:"Cảnh báo tồn kho", v:`${lowN} SP`, s:"Cần bổ sung", c:"#EF4444", I:AlertTriangle }].map(({ l, v, s, c, I }) => (
           <div key={l} className="kpc" style={{ cursor:"default", border:"1px solid var(--bd)" }}>
             <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}><span style={{ fontSize:12, fontWeight:600, color:"var(--t2)" }}>{l}</span><div style={{ width:38, height:38, borderRadius:10, background:`${c}18`, display:"flex", alignItems:"center", justifyContent:"center" }}><I size={18} style={{ color:c }} /></div></div>
             <p style={{ fontSize:25, fontWeight:800, letterSpacing:-1 }}>{v}</p>
@@ -2179,16 +2181,18 @@ function ReportsPage({ prods, imps, exps, dark, logActivity, whs, adminProfile }
   return (
     <div className="af">
       <div className="ph"><div><div className="pt">Báo cáo & thống kê</div><div className="ps">Dữ liệu thực từ hệ thống</div></div><div style={{ display:"flex", gap:8 }}><button className="btn btnS" onClick={exportExcel}><FileSpreadsheet size={13} />Excel</button><button className="btn btnS" onClick={() => window.print()}><FileText size={13} />PDF</button><button className="btn btnP" onClick={() => window.print()}><Printer size={13} />In báo cáo</button></div></div>
-      {adminProfile?.role !== "warehouse_manager" && (
+      {!["warehouse_manager", "import_staff", "export_staff"].includes(adminProfile?.role) && (
         <div className="g4" style={{ marginBottom:17 }}>{[{ l:"Tổng nhập (HT)", v:fmtM(imps.filter(o => o.status === "completed").reduce((s, o) => s + orderTotal(o.items), 0)), c:"#2563EB" }, { l:"Tổng xuất (HT)", v:fmtM(exps.filter(o => o.status === "completed").reduce((s, o) => s + orderTotal(o.items), 0)), c:"#14B8A6" }, { l:"Tổng tồn kho", v:`${prods.reduce((s, p) => s + p.stock, 0)} SP`, c:"#8B5CF6" }, { l:"Giá trị tồn", v:fmtM(prods.reduce((s, p) => s + p.stock * p.buyPrice, 0)), c:"#F59E0B" }].map(({ l, v, c }) => <div key={l} className="card"><p style={{ fontSize:12, color:"var(--t2)", fontWeight:600 }}>{l}</p><p style={{ fontSize:22, fontWeight:800, marginTop:7, color:c }}>{v}</p></div>)}</div>
       )}
-      <div style={{ display:"grid", gridTemplateColumns:"2fr 1fr", gap:14, marginBottom:14 }}>
-        <div className="card"><div className="st"><BarChart2 size={14} style={{ color:"#2563EB" }} />Nhập/Xuất kho (6 tháng)</div>
-          <ResponsiveContainer width="100%" height={220}><BarChart data={dynamicBar} margin={{ top:5, right:8, bottom:5, left:-10 }}><CartesianGrid strokeDasharray="3 3" stroke={gc} /><XAxis dataKey="m" tick={{ fill:tc, fontSize:11 }} axisLine={false} tickLine={false} /><YAxis tick={{ fill:tc, fontSize:11 }} axisLine={false} tickLine={false} /><Tooltip content={<TT />} /><Legend wrapperStyle={{ fontSize:12, color:tc }} /><Bar dataKey="n" name="Nhập kho (Tr.đ)" fill="#2563EB" radius={[3,3,0,0]} /><Bar dataKey="x" name="Xuất kho (Tr.đ)" fill="#06B6D4" radius={[3,3,0,0]} /></BarChart></ResponsiveContainer></div>
-        <div className="card"><div className="st"><Target size={14} style={{ color:"#8B5CF6" }} />Danh mục</div>
-          <ResponsiveContainer width="100%" height={185}><PieChart><Pie data={dynamicPie} nameKey="n" cx="50%" cy="50%" outerRadius={70} paddingAngle={3} dataKey="v">{dynamicPie.map((e, i) => <Cell key={i} fill={e.c} />)}</Pie><Tooltip content={<PieTT />} /></PieChart></ResponsiveContainer>
-          {dynamicPie.map(it => <div key={it.n} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", fontSize:12, marginBottom:3 }}><div style={{ display:"flex", alignItems:"center", gap:5 }}><span style={{ width:8, height:8, borderRadius:2, background:it.c, display:"inline-block" }} /><span style={{ color:"var(--t2)" }}>{it.n}</span></div><span style={{ fontWeight:700 }}>{it.v}%</span></div>)}</div>
-      </div>
+      {!["import_staff", "export_staff"].includes(adminProfile?.role) && (
+        <div style={{ display:"grid", gridTemplateColumns:"2fr 1fr", gap:14, marginBottom:14 }}>
+          <div className="card"><div className="st"><BarChart2 size={14} style={{ color:"#2563EB" }} />Nhập/Xuất kho (6 tháng)</div>
+            <ResponsiveContainer width="100%" height={220}><BarChart data={dynamicBar} margin={{ top:5, right:8, bottom:5, left:-10 }}><CartesianGrid strokeDasharray="3 3" stroke={gc} /><XAxis dataKey="m" tick={{ fill:tc, fontSize:11 }} axisLine={false} tickLine={false} /><YAxis tick={{ fill:tc, fontSize:11 }} axisLine={false} tickLine={false} /><Tooltip content={<TT />} /><Legend wrapperStyle={{ fontSize:12, color:tc }} /><Bar dataKey="n" name="Nhập kho (Tr.đ)" fill="#2563EB" radius={[3,3,0,0]} /><Bar dataKey="x" name="Xuất kho (Tr.đ)" fill="#06B6D4" radius={[3,3,0,0]} /></BarChart></ResponsiveContainer></div>
+          <div className="card"><div className="st"><Target size={14} style={{ color:"#8B5CF6" }} />Danh mục</div>
+            <ResponsiveContainer width="100%" height={185}><PieChart><Pie data={dynamicPie} nameKey="n" cx="50%" cy="50%" outerRadius={70} paddingAngle={3} dataKey="v">{dynamicPie.map((e, i) => <Cell key={i} fill={e.c} />)}</Pie><Tooltip content={<PieTT />} /></PieChart></ResponsiveContainer>
+            {dynamicPie.map(it => <div key={it.n} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", fontSize:12, marginBottom:3 }}><div style={{ display:"flex", alignItems:"center", gap:5 }}><span style={{ width:8, height:8, borderRadius:2, background:it.c, display:"inline-block" }} /><span style={{ color:"var(--t2)" }}>{it.n}</span></div><span style={{ fontWeight:700 }}>{it.v}%</span></div>)}</div>
+        </div>
+      )}
       <div className="g3" style={{ marginTop: 14, maxWidth: "1200px" }}>
         <div className="card">
           <div className="st"><Warehouse size={14} style={{ color:"#06B6D4" }} />Công suất kho</div>

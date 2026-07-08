@@ -129,24 +129,21 @@ const Login = () => {
           }} 
         />
         <div className="relative z-10 w-full">
-          <div className="sm:mx-auto sm:w-full sm:max-w-md">
-          <div className="flex justify-center">
-            <div className="bg-blue-600 p-3 rounded-xl">
-              <Package className="h-10 w-10 text-white" />
-            </div>
-          </div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Quên mật khẩu
-          </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            {forgotPasswordStep === 'email' && 'Nhập email của bạn để nhận mã xác nhận OTP'}
-            {forgotPasswordStep === 'otp' && 'Nhập mã xác nhận OTP gồm 6 chữ số gửi đến email của bạn'}
-            {forgotPasswordStep === 'password' && 'Thiết lập mật khẩu mới cho tài khoản của bạn'}
-          </p>
-        </div>
-
-        <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+          <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
           <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+            <div className="flex justify-center mb-4">
+              <div className="bg-blue-600 p-3 rounded-xl">
+                <Package className="h-10 w-10 text-white" />
+              </div>
+            </div>
+            <h2 className="text-center text-3xl font-extrabold text-gray-900 mb-1">
+              Quên mật khẩu
+            </h2>
+            <p className="text-center text-sm text-gray-600 mb-6">
+              {forgotPasswordStep === 'email' && 'Nhập email của bạn để nhận mã xác nhận OTP'}
+              {forgotPasswordStep === 'otp' && 'Nhập mã xác nhận OTP gồm 6 chữ số gửi đến email của bạn'}
+              {forgotPasswordStep === 'password' && 'Thiết lập mật khẩu mới cho tài khoản của bạn'}
+            </p>
             {forgotPasswordStep === 'email' && (
               <form className="space-y-6" onSubmit={handleResetRequest}>
                 <div>
@@ -313,22 +310,19 @@ const Login = () => {
         }} 
       />
       <div className="relative z-10 w-full">
-        <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="flex justify-center">
-          <div className="bg-blue-600 p-3 rounded-xl">
-            <Package className="h-10 w-10 text-white" />
-          </div>
-        </div>
-        <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-          Hệ thống Quản lý Kho
-        </h2>
-        <p className="mt-2 text-center text-sm text-gray-600">
-          Đăng nhập vào hệ thống
-        </p>
-      </div>
-
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+          <div className="flex justify-center mb-4">
+            <div className="bg-blue-600 p-3 rounded-xl">
+              <Package className="h-10 w-10 text-white" />
+            </div>
+          </div>
+          <h2 className="text-center text-3xl font-extrabold text-gray-900 mb-1">
+            Hệ thống Quản lý Kho
+          </h2>
+          <p className="text-center text-sm text-gray-600 mb-6">
+            Đăng nhập vào hệ thống
+          </p>
           <form className="space-y-6" onSubmit={handleAuth}>
             <div>
               <label className="block text-sm font-medium text-gray-700">

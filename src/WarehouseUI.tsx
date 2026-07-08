@@ -665,8 +665,8 @@ function Dashboard({ prods, whs, imps, exps, dark, logActivity }) {
         <div><div className="pt">Tổng quan hệ thống</div><div className="ps">Dữ liệu thực · Cập nhật liên tục</div></div>
         <button className="btn btnP" onClick={exportDashboardReport}><Download size={13} />Xuất báo cáo</button>
       </div>
-      <div className="g3" style={{ marginBottom:17 }}>
-        {[{ l:"Tổng sản phẩm", v:`${prods.length} SP`, s:`${tStock} đv tồn`, c:"#2563EB", I:Package }, { l:"Giá trị tồn kho", v:fmtM(tVal), s:"Tổng giá nhập", c:"#06B6D4", I:DollarSign }, { l:"Cảnh báo tồn kho", v:`${lowN} SP`, s:"", c:"#EF4444", I:AlertTriangle }].map(({ l, v, s, c, I }) => (
+      <div className="g2" style={{ marginBottom:17 }}>
+        {[{ l:"Tổng sản phẩm", v:`${prods.length} SP`, s:`${tStock} đv tồn`, c:"#2563EB", I:Package }, { l:"Giá trị tồn kho", v:fmtM(tVal), s:"Tổng giá nhập", c:"#06B6D4", I:DollarSign }].map(({ l, v, s, c, I }) => (
           <div key={l} className="kpc" style={{ cursor:"default", border:"1px solid var(--bd)" }}>
             <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}><span style={{ fontSize:12, fontWeight:600, color:"var(--t2)" }}>{l}</span><div style={{ width:38, height:38, borderRadius:10, background:`${c}18`, display:"flex", alignItems:"center", justifyContent:"center" }}><I size={18} style={{ color:c }} /></div></div>
             <p style={{ fontSize:25, fontWeight:800, letterSpacing:-1 }}>{v}</p>

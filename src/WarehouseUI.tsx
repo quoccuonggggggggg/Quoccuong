@@ -282,27 +282,24 @@ const getWhPrefix = (whName) => {
   return whName.charAt(0).toUpperCase();
 };
 
-const generateUniqueLocation = (whId, whs, prods) => {
+const generateUniqueLocation = (whId, whs, prods, sku) => {
   const wh = whs.find(w => w.id === whId);
   if (!wh) return "";
   const prefix = getWhPrefix(wh.name);
-  const maxZones = wh.zones || 5;
+  const abbr = getSkuAbbreviation(sku);
   const existingLocs = new Set(
     prods
       .filter(p => p.wid === whId && p.loc)
       .map(p => p.loc.trim().toUpperCase())
   );
-  for (let z = 1; z <= maxZones; z++) {
-    const zoneStr = String(z).padStart(2, '0');
-    for (let pos = 1; pos <= 99; pos++) {
-      const posStr = String(pos).padStart(2, '0');
-      const candidate = `${prefix}-${zoneStr}-${posStr}`;
-      if (!existingLocs.has(candidate)) {
-        return candidate;
-      }
+  for (let seq = 1; seq <= 99; seq++) {
+    const seqStr = String(seq).padStart(2, '0');
+    const candidate = `${prefix}-${abbr}-${seqStr}`;
+    if (!existingLocs.has(candidate)) {
+      return candidate;
     }
   }
-  return `${prefix}-99-99`;
+  return `${prefix}-${abbr}-99`;
 };
 
 const getCategoryByWarehouse = (whName) => {
@@ -313,6 +310,34 @@ const getCategoryByWarehouse = (whName) => {
   if (name.includes("kho c")) return "Điện gia dụng";
   return "Khác";
 };
+
+const getSkuAbbreviation = (sku) => {
+  if (!sku) return "SP";
+  const clean = sku.trim().replace(/[^a-zA-Z0-9\s-]/g, "");
+  if (!clean) return "SP";
+  const parts = clean.split(/[\s-]+/).filter(Boolean);
+  if (parts.length >= 2) {
+    const char1 = parts[0].charAt(0).toUpperCase();
+    const char2 = parts[1].charAt(0).toUpperCase();
+    return (char1 + char2).padEnd(2, "X").slice(0, 2);
+  }
+  const upper = clean.toUpperCase();
+  const lettersOnly = upper.replace(/[^A-Z]/g, "");
+  if (lettersOnly.length >= 2) {
+    return lettersOnly.slice(0, 2);
+  }
+  return upper.padEnd(2, "X").slice(0, 2);
+};
+
+const getCategoriesForWarehouse = (whName) => {
+  if (!whName) return ["Điện tử"];
+  const name = whName.toLowerCase();
+  if (name.includes("kho a")) return ["Điện tử", "Âm thanh", "Phụ kiện"];
+  if (name.includes("kho b")) return ["Nội thất", "An ninh"];
+  if (name.includes("kho c")) return ["Điện gia dụng", "Văn phòng", "Điện", "Mạng"];
+  return ["Khác"];
+};
+
 
 const STMAP = { active:{l:"Hoạt động",c:"bg"}, low:{l:"Tồn thấp",c:"by"}, critical:{l:"Sắp hết hàng",c:"br"}, out:{l:"Hết hàng",c:"br"}, inactive:{l:"Ngừng HĐ",c:"bgr"}, completed:{l:"Hoàn thành",c:"bg"}, processing:{l:"Đang xử lý",c:"bb"}, pending:{l:"Chờ duyệt",c:"by"}, cancelled:{l:"Đã hủy",c:"bgr"} };
 const RMAP  = { Admin:{l:"Admin",c:"bp"}, Manager:{l:"Quản lý",c:"bb"}, Staff:{l:"Nhân viên",c:"bg"}, WarehouseStaff:{l:"NV Kho",c:"bc"}, Accountant:{l:"Kế toán",c:"by"} };
@@ -856,7 +881,7 @@ function ProductsPage({ prods, setProds, whs, showT, logActivity }) {
           const defaultWh = whs[0]?.id || "";
           const wh = whs.find(w => w.id === defaultWh);
           const defaultCat = getCategoryByWarehouse(wh?.name);
-          const autoLoc = generateUniqueLocation(defaultWh, whs, prods);
+          const autoLoc = generateUniqueLocation(defaultWh, whs, prods, "");
           setForm({ ...EP0, wid: defaultWh, loc: autoLoc, category: defaultCat, stock: "0" });
           setErrs({});
           setSel(null);
@@ -918,19 +943,31 @@ function ProductsPage({ prods, setProds, whs, showT, logActivity }) {
             </div>
             <div className="g2" style={{ gap:10 }}>
               <Fld label="Tên sản phẩm" req error={errs.name}><input className="inp" placeholder="Tên sản phẩm" value={form.name} onChange={e => setForm(p => ({ ...p, name:e.target.value }))} style={{ borderColor:errs.name ? "#EF4444" : undefined }} /></Fld>
-              <Fld label="Mã SP (SKU)" req error={errs.sku}><input className="inp" placeholder="VD: DELL-XPS13" value={form.sku} onChange={e => setForm(p => ({ ...p, sku:e.target.value }))} style={{ borderColor:errs.sku ? "#EF4444" : undefined }} /></Fld>
+              <Fld label="Mã SP (SKU)" req error={errs.sku}>
+                <input 
+                  className="inp" 
+                  placeholder="VD: DELL-XPS13" 
+                  value={form.sku} 
+                  onChange={e => {
+                    const newSku = e.target.value;
+                    setForm(p => ({ ...p, sku: newSku, loc: generateUniqueLocation(p.wid, whs, prods, newSku) }));
+                  }} 
+                  style={{ borderColor:errs.sku ? "#EF4444" : undefined }} 
+                />
+              </Fld>
               <Fld label="Danh mục">
-                <input className="inp" placeholder="VD: Điện thoại" list="category-list" value={form.category} onChange={e => setForm(p => ({ ...p, category:e.target.value }))} />
-                <datalist id="category-list">
-                  {dynamicCats.map(c => <option key={c} value={c} />)}
-                </datalist>
+                <select className="inp" value={form.category} onChange={e => setForm(p => ({ ...p, category:e.target.value }))}>
+                  {getCategoriesForWarehouse(whs.find(w => w.id === form.wid)?.name).map(c => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
               </Fld>
               <Fld label="Kho chứa">
                 <select className="inp" value={form.wid} onChange={e => {
                   const newWhId = e.target.value;
                   const wh = whs.find(w => w.id === newWhId);
                   const defaultCat = getCategoryByWarehouse(wh?.name);
-                  const autoLoc = generateUniqueLocation(newWhId, whs, prods);
+                  const autoLoc = generateUniqueLocation(newWhId, whs, prods, form.sku);
                   setForm(p => ({ ...p, wid: newWhId, loc: autoLoc, category: defaultCat }));
                 }}>
                   {[...whs].sort((a, b) => a.name.localeCompare(b.name)).map(w => <option key={w.id} value={w.id}>{w.name}</option>)}

@@ -1280,7 +1280,7 @@ function OrderFormModal({ type, mode, order, prods, setProds, whs, supps, users,
           <Fld label={`Kho ${isImp ? "nhập" : "xuất"}`}>
             <select className="inp" disabled={isImp} value={form.wid} onChange={e => { const w = whs.find(x => x.id === e.target.value); setForm(p => ({ ...p, wid:e.target.value, wname:w?.name || "", items:[] })); }}>{[...whs].sort((a, b) => a.name.localeCompare(b.name)).map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</select>
           </Fld>
-          <Fld label="Ngày tạo"><input type="date" className="inp" value={form.date} onChange={e => setForm(p => ({ ...p, date:e.target.value }))} /></Fld>
+          <Fld label="Ngày tạo"><input type="date" className="inp" disabled value={form.date} /></Fld>
           <div style={{ gridColumn:"1/-1" }}><Fld label="Ghi chú"><input className="inp" placeholder="Ghi chú..." value={form.note || ""} onChange={e => setForm(p => ({ ...p, note:e.target.value }))} /></Fld></div>
         </div>
         {/* Items */}
@@ -2063,26 +2063,6 @@ function UsersPage({ users, setUsers, showT, loginHistory, logActivity }) {
               ))}
               <Fld label="Vai trò"><select className="inp" value={form.role} onChange={e => setForm(p => ({ ...p, role:e.target.value }))}>{Object.entries(RMAP).map(([k, v]) => <option key={k} value={k}>{v.l}</option>)}</select></Fld>
             </div>
-            <div style={{ marginTop:10 }}>
-              <Fld label="Mật khẩu hiện tại">
-                <div style={{ position: "relative" }}>
-                  <input
-                    type={showUserPassword ? "text" : "password"}
-                    className="inp"
-                    value={form.password || `${form.username || "user"}@123`}
-                    readOnly
-                    style={{ paddingRight: 40, background: "var(--b2)", cursor: "not-allowed", opacity: 0.8 }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowUserPassword(!showUserPassword)}
-                    style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "var(--t3)", display: "flex", alignItems: "center" }}
-                  >
-                    {showUserPassword ? <EyeOff size={15} /> : <Eye size={15} />}
-                  </button>
-                </div>
-              </Fld>
-            </div>
             <div style={{ display:"flex", gap:8, justifyContent:"flex-end", marginTop:17 }}><button className="btn btnS" onClick={close}>Hủy</button><button className="btn btnP" onClick={save}><CheckCircle size={13} />Lưu</button></div>
           </div>
         </div>,
@@ -2102,7 +2082,7 @@ function UsersPage({ users, setUsers, showT, loginHistory, logActivity }) {
   );
 }
 
-function ReportsPage({ prods, imps, exps, dark, logActivity, whs }) {
+function ReportsPage({ prods, imps, exps, dark, logActivity, whs, adminProfile }) {
   const tc = dark ? "#94A3B8" : "#64748B"; const gc = dark ? "rgba(148,163,184,.06)" : "rgba(0,0,0,.05)";
 
   const dynamicPie = useMemo(() => {
@@ -2199,7 +2179,9 @@ function ReportsPage({ prods, imps, exps, dark, logActivity, whs }) {
   return (
     <div className="af">
       <div className="ph"><div><div className="pt">Báo cáo & thống kê</div><div className="ps">Dữ liệu thực từ hệ thống</div></div><div style={{ display:"flex", gap:8 }}><button className="btn btnS" onClick={exportExcel}><FileSpreadsheet size={13} />Excel</button><button className="btn btnS" onClick={() => window.print()}><FileText size={13} />PDF</button><button className="btn btnP" onClick={() => window.print()}><Printer size={13} />In báo cáo</button></div></div>
-      <div className="g4" style={{ marginBottom:17 }}>{[{ l:"Tổng nhập (HT)", v:fmtM(imps.filter(o => o.status === "completed").reduce((s, o) => s + orderTotal(o.items), 0)), c:"#2563EB" }, { l:"Tổng xuất (HT)", v:fmtM(exps.filter(o => o.status === "completed").reduce((s, o) => s + orderTotal(o.items), 0)), c:"#14B8A6" }, { l:"Tổng tồn kho", v:`${prods.reduce((s, p) => s + p.stock, 0)} SP`, c:"#8B5CF6" }, { l:"Giá trị tồn", v:fmtM(prods.reduce((s, p) => s + p.stock * p.buyPrice, 0)), c:"#F59E0B" }].map(({ l, v, c }) => <div key={l} className="card"><p style={{ fontSize:12, color:"var(--t2)", fontWeight:600 }}>{l}</p><p style={{ fontSize:22, fontWeight:800, marginTop:7, color:c }}>{v}</p></div>)}</div>
+      {adminProfile?.role !== "warehouse_manager" && (
+        <div className="g4" style={{ marginBottom:17 }}>{[{ l:"Tổng nhập (HT)", v:fmtM(imps.filter(o => o.status === "completed").reduce((s, o) => s + orderTotal(o.items), 0)), c:"#2563EB" }, { l:"Tổng xuất (HT)", v:fmtM(exps.filter(o => o.status === "completed").reduce((s, o) => s + orderTotal(o.items), 0)), c:"#14B8A6" }, { l:"Tổng tồn kho", v:`${prods.reduce((s, p) => s + p.stock, 0)} SP`, c:"#8B5CF6" }, { l:"Giá trị tồn", v:fmtM(prods.reduce((s, p) => s + p.stock * p.buyPrice, 0)), c:"#F59E0B" }].map(({ l, v, c }) => <div key={l} className="card"><p style={{ fontSize:12, color:"var(--t2)", fontWeight:600 }}>{l}</p><p style={{ fontSize:22, fontWeight:800, marginTop:7, color:c }}>{v}</p></div>)}</div>
+      )}
       <div style={{ display:"grid", gridTemplateColumns:"2fr 1fr", gap:14, marginBottom:14 }}>
         <div className="card"><div className="st"><BarChart2 size={14} style={{ color:"#2563EB" }} />Nhập/Xuất kho (6 tháng)</div>
           <ResponsiveContainer width="100%" height={220}><BarChart data={dynamicBar} margin={{ top:5, right:8, bottom:5, left:-10 }}><CartesianGrid strokeDasharray="3 3" stroke={gc} /><XAxis dataKey="m" tick={{ fill:tc, fontSize:11 }} axisLine={false} tickLine={false} /><YAxis tick={{ fill:tc, fontSize:11 }} axisLine={false} tickLine={false} /><Tooltip content={<TT />} /><Legend wrapperStyle={{ fontSize:12, color:tc }} /><Bar dataKey="n" name="Nhập kho (Tr.đ)" fill="#2563EB" radius={[3,3,0,0]} /><Bar dataKey="x" name="Xuất kho (Tr.đ)" fill="#06B6D4" radius={[3,3,0,0]} /></BarChart></ResponsiveContainer></div>

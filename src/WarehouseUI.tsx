@@ -507,11 +507,11 @@ function Topbar({ dark, onDark, pg, nc, onLogout, onAction, adminProfile, prods,
         <span style={{ fontSize: 12, color: "var(--t2)" }}>{new Date().toLocaleDateString("vi-VN", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" })}</span>
         <button className="ib" onClick={onDark}>{dark ? <Sun size={15} /> : <Moon size={15} />}</button>
         <div style={{ position: "relative" }}>
-          <button className="ib" onClick={() => setShowNotif(v => !v)}><Bell size={15} />{nc > 0 && <span className="ndot" />}</button>
+          <button className="ib" onClick={() => setShowNotif(v => !v)}><AlertTriangle size={15} />{nc > 0 && <span className="ndot" />}</button>
           {showNotif && (
             <div className="dd" style={{ right: 0, width: 320, maxHeight: 400, overflowY: "auto" }}>
               <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--bd)" }}>
-                <p style={{ fontWeight: 600, fontSize: 13 }}>Thông báo tồn kho</p>
+                <p style={{ fontWeight: 600, fontSize: 13 }}>Cảnh báo hết hàng</p>
                 <p style={{ fontSize: 11, color: "var(--t3)", marginTop: 2 }}>{nc} sản phẩm cần chú ý</p>
               </div>
               <div style={{ padding: 5 }}>

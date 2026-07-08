@@ -704,7 +704,7 @@ function Dashboard({ prods, whs, imps, exps, dark, logActivity }) {
                 const wh = whs.find(w => w.id === p.wid);
                 return (
                   <tr key={p.id}>
-                    <td style={{ fontWeight:600, maxWidth:120, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }} title={p.name}>{p.name}</td>
+                    <td style={{ fontWeight:600 }} title={p.name}>{p.name}</td>
                     <td>{wh?.name.split(" - ")[0] || "—"}</td>
                     <td style={{ textAlign:"right", fontWeight:800, color:"#14B8A6" }}>{fmt(p.stock)}</td>
                   </tr>
@@ -733,7 +733,7 @@ function Dashboard({ prods, whs, imps, exps, dark, logActivity }) {
                   const wh = whs.find(w => w.id === p.wid);
                   return (
                     <tr key={p.id}>
-                      <td style={{ fontWeight:600, maxWidth:100, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }} title={p.name}>{p.name}</td>
+                      <td style={{ fontWeight:600 }} title={p.name}>{p.name}</td>
                       <td>{wh?.name.split(" - ")[0] || "—"}</td>
                       <td style={{ textAlign:"right", fontWeight:800, color:"#EF4444" }}>{p.stock}</td>
                       <td><Bdg s={p.status} /></td>
@@ -1071,6 +1071,8 @@ function WarehousesPage({ whs, setWhs, prods, showT, logActivity }) {
 ═══════════════════════════════════════════════════════════ */
 function OrderFormModal({ type, mode, order, prods, setProds, whs, supps, users, showT, onSave, onClose }) {
   const isImp = type === "imp";
+  const importUsers = users.filter(u => u.role === "Admin" || u.name === "Admin Hệ Thống" || u.position?.toLowerCase().includes("nhập") || u.name?.toLowerCase().includes("nhập"));
+  const exportUsers = users.filter(u => u.role === "Admin" || u.name === "Admin Hệ Thống" || u.position?.toLowerCase().includes("xuất") || u.name?.toLowerCase().includes("xuất"));
   const [form, setForm] = useState(() => order ? {
     ...(isImp ? { sid:order.sid, sname:order.sname, receiver:order.receiver } : { customer:order.customer, handler:order.handler }),
     wid:order.wid, wname:order.wname, status:order.status, date:order.date, note:order.note || "", items:order.items.map(i => ({ ...i })),
@@ -1136,7 +1138,7 @@ function OrderFormModal({ type, mode, order, prods, setProds, whs, supps, users,
   };
 
   const addItem = () => {
-    const f = isImp ? prods[0] : (whProds[0] || prods[0]);
+    const f = whProds[0] || prods[0];
     if (!f) {
       showT("Không có sản phẩm nào để thêm!", "warn");
       return;
@@ -1186,12 +1188,12 @@ function OrderFormModal({ type, mode, order, prods, setProds, whs, supps, users,
               </select>
             </Fld>
             <Fld label="Người nhận">
-              <select className="inp" value={form.receiver} onChange={e => setForm(p => ({ ...p, receiver:e.target.value }))}><option value="">Chọn người nhận</option>{users.map(u => <option key={u.id}>{u.name}</option>)}</select>
+              <select className="inp" value={form.receiver} onChange={e => setForm(p => ({ ...p, receiver:e.target.value }))}><option value="">Chọn người nhận</option>{importUsers.map(u => <option key={u.id}>{u.name}</option>)}</select>
             </Fld>
           </>) : (<>
             <Fld label="Khách hàng / Đơn vị nhận" req error={errs.customer}><input className="inp" placeholder="Tên công ty / cá nhân" value={form.customer || ""} onChange={e => setForm(p => ({ ...p, customer:e.target.value }))} style={{ borderColor:errs.customer ? "#EF4444" : undefined }} /></Fld>
             <Fld label="Người xử lý">
-              <select className="inp" value={form.handler || ""} onChange={e => setForm(p => ({ ...p, handler:e.target.value }))}><option value="">Chọn người xử lý</option>{users.map(u => <option key={u.id}>{u.name}</option>)}</select>
+              <select className="inp" value={form.handler || ""} onChange={e => setForm(p => ({ ...p, handler:e.target.value }))}><option value="">Chọn người xử lý</option>{exportUsers.map(u => <option key={u.id}>{u.name}</option>)}</select>
             </Fld>
           </>)}
           <Fld label={`Kho ${isImp ? "nhập" : "xuất"}`}>
@@ -1241,7 +1243,7 @@ function OrderFormModal({ type, mode, order, prods, setProds, whs, supps, users,
                             onChange={e => upItem(idx, "pid", e.target.value)}
                           >
                             {(() => {
-                              const opts = isImp ? prods : (whProds.length ? whProds : prods);
+                              const opts = whProds;
                               const query = (it.searchQuery || "").toLowerCase().trim();
                               const filtered = opts.filter(p =>
                                 !query ||
@@ -1340,15 +1342,16 @@ const IMP_KPI = [
 function ImportsPage({ imps, setImps, prods, setProds, whs, supps, users, showT, logActivity }) {
   const [kpi, setKpi]     = useState(null); const [modal, setModal] = useState(null); const [sel, setSel] = useState(null); const [srch, setSrch] = useState("");
   const [sortOrder, setSortOrder] = useState("newest");
+  const [filterDate, setFilterDate] = useState("");
   const cnt = k => k === "all" ? imps.length : imps.filter(o => o.status === k).length;
   const filtered = useMemo(() => {
-    const list = imps.filter(o => { const q = srch.toLowerCase(); return (!q || o.id.toLowerCase().includes(q) || (o.sname || "").toLowerCase().includes(q)) && (!kpi || kpi === "all" || o.status === kpi); });
+    const list = imps.filter(o => { const q = srch.toLowerCase(); return (!q || o.id.toLowerCase().includes(q) || (o.sname || "").toLowerCase().includes(q)) && (!kpi || kpi === "all" || o.status === kpi) && (!filterDate || o.date === filterDate); });
     return list.sort((a, b) => {
       const dateA = new Date(a.date).getTime();
       const dateB = new Date(b.date).getTime();
       return sortOrder === "newest" ? dateB - dateA : dateA - dateB;
     });
-  }, [imps, kpi, srch, sortOrder]);
+  }, [imps, kpi, srch, sortOrder, filterDate]);
 
   const applyDelta = (items, delta) => setProds(p => p.map(prod => { const it = items.find(i => i.pid === prod.id); if (!it) return prod; const ns = Math.max(0, prod.stock + delta * it.qty); return { ...prod, stock:ns, status:sSt(ns), upd:today() }; }));
   const handleSave = async (fd) => {
@@ -1442,6 +1445,11 @@ function ImportsPage({ imps, setImps, prods, setProds, whs, supps, users, showT,
             <Search size={13} color="var(--t3)" /><input value={srch} onChange={e => setSrch(e.target.value)} placeholder="Tìm mã phiếu, nhà cung cấp..." style={{ background:"none", border:"none", outline:"none", fontSize:13, color:"var(--t1)", flex:1, fontFamily:"inherit" }} />
             {srch && <button onClick={() => setSrch("")} style={{ background:"none", border:"none", cursor:"pointer", color:"var(--t3)" }}><X size={12} /></button>}
           </div>
+          <div style={{ display:"flex", alignItems:"center", gap:5, background:"var(--b2)", border:"1px solid var(--bd2)", borderRadius:9, padding:"3px 8px" }}>
+            <span style={{ fontSize:12, color:"var(--t2)", fontWeight:600 }}>Lọc ngày:</span>
+            <input type="date" className="inp" value={filterDate} onChange={e => setFilterDate(e.target.value)} style={{ width:"auto", border:"none", background:"none", height:24, padding:0, fontSize:12 }} />
+            {filterDate && <button onClick={() => setFilterDate("")} style={{ background:"none", border:"none", cursor:"pointer", color:"var(--t3)", display:"flex", alignItems:"center" }}><X size={12} /></button>}
+          </div>
           <select className="inp" value={sortOrder} onChange={e => setSortOrder(e.target.value)} style={{ width:"auto" }}>
             <option value="newest">Ngày gần nhất</option>
             <option value="oldest">Ngày xa nhất</option>
@@ -1473,7 +1481,6 @@ function ImportsPage({ imps, setImps, prods, setProds, whs, supps, users, showT,
                   {o.status !== "cancelled" && (
                     <button className="btn btnS btnI" title="Hủy phiếu" onClick={() => { setSel(o); setModal("cancel"); }}><XCircle size={12} style={{ color:"#F59E0B" }} /></button>
                   )}
-                  <button className="btn btnS btnI" title="Xóa" onClick={() => { setSel(o); setModal("del"); }}><Trash2 size={12} style={{ color:"#EF4444" }} /></button>
                 </div></td>
               </tr>
             ))}
@@ -1504,15 +1511,16 @@ const EXP_KPI = [
 function ExportsPage({ exps, setExps, prods, setProds, whs, users, showT, logActivity }) {
   const [kpi, setKpi]     = useState(null); const [modal, setModal] = useState(null); const [sel, setSel] = useState(null); const [srch, setSrch] = useState("");
   const [sortOrder, setSortOrder] = useState("newest");
+  const [filterDate, setFilterDate] = useState("");
   const cnt = k => k === "all" ? exps.length : exps.filter(o => o.status === k).length;
   const filtered = useMemo(() => {
-    const list = exps.filter(o => { const q = srch.toLowerCase(); return (!q || o.id.toLowerCase().includes(q) || (o.customer || "").toLowerCase().includes(q)) && (!kpi || kpi === "all" || o.status === kpi); });
+    const list = exps.filter(o => { const q = srch.toLowerCase(); return (!q || o.id.toLowerCase().includes(q) || (o.customer || "").toLowerCase().includes(q)) && (!kpi || kpi === "all" || o.status === kpi) && (!filterDate || o.date === filterDate); });
     return list.sort((a, b) => {
       const dateA = new Date(a.date).getTime();
       const dateB = new Date(b.date).getTime();
       return sortOrder === "newest" ? dateB - dateA : dateA - dateB;
     });
-  }, [exps, kpi, srch, sortOrder]);
+  }, [exps, kpi, srch, sortOrder, filterDate]);
 
   const applyDelta = (items, delta) => setProds(p => p.map(prod => { const it = items.find(i => i.pid === prod.id); if (!it) return prod; const ns = Math.max(0, prod.stock + delta * it.qty); return { ...prod, stock:ns, status:sSt(ns), upd:today() }; }));
   const handleSave = async (fd) => {
@@ -1605,6 +1613,11 @@ function ExportsPage({ exps, setExps, prods, setProds, whs, users, showT, logAct
             <Search size={13} color="var(--t3)" /><input value={srch} onChange={e => setSrch(e.target.value)} placeholder="Tìm mã phiếu, khách hàng..." style={{ background:"none", border:"none", outline:"none", fontSize:13, color:"var(--t1)", flex:1, fontFamily:"inherit" }} />
             {srch && <button onClick={() => setSrch("")} style={{ background:"none", border:"none", cursor:"pointer", color:"var(--t3)" }}><X size={12} /></button>}
           </div>
+          <div style={{ display:"flex", alignItems:"center", gap:5, background:"var(--b2)", border:"1px solid var(--bd2)", borderRadius:9, padding:"3px 8px" }}>
+            <span style={{ fontSize:12, color:"var(--t2)", fontWeight:600 }}>Lọc ngày:</span>
+            <input type="date" className="inp" value={filterDate} onChange={e => setFilterDate(e.target.value)} style={{ width:"auto", border:"none", background:"none", height:24, padding:0, fontSize:12 }} />
+            {filterDate && <button onClick={() => setFilterDate("")} style={{ background:"none", border:"none", cursor:"pointer", color:"var(--t3)", display:"flex", alignItems:"center" }}><X size={12} /></button>}
+          </div>
           <select className="inp" value={sortOrder} onChange={e => setSortOrder(e.target.value)} style={{ width:"auto" }}>
             <option value="newest">Ngày gần nhất</option>
             <option value="oldest">Ngày xa nhất</option>
@@ -1636,7 +1649,6 @@ function ExportsPage({ exps, setExps, prods, setProds, whs, users, showT, logAct
                   {o.status !== "cancelled" && (
                     <button className="btn btnS btnI" title="Hủy phiếu" onClick={() => { setSel(o); setModal("cancel"); }}><XCircle size={12} style={{ color:"#F59E0B" }} /></button>
                   )}
-                  <button className="btn btnS btnI" title="Xóa" onClick={() => { setSel(o); setModal("del"); }}><Trash2 size={12} style={{ color:"#EF4444" }} /></button>
                 </div></td>
               </tr>
             ))}
@@ -1901,7 +1913,6 @@ function UsersPage({ users, setUsers, showT, loginHistory, logActivity }) {
                 <td><div style={{ display:"flex", gap:3, justifyContent:"center" }}>
                   <button className="btn btnS btnI" onClick={() => { setSel(u); setModal("view"); }}><Eye size={12} /></button>
                   <button className="btn btnS btnI" onClick={() => { setSel(u); setForm({ ...u, password:"" }); setErrs({}); setModal("edit"); }}><Edit2 size={12} style={{ color:"#2563EB" }} /></button>
-                  <button className="btn btnS btnI" onClick={() => { setSel(u); setModal("del"); }}><Trash2 size={12} style={{ color:"#EF4444" }} /></button>
                 </div></td>
               </tr>
             ); })}
@@ -2144,7 +2155,7 @@ function ReportsPage({ prods, imps, exps, dark, logActivity, whs }) {
                 const wh = whs.find(w => w.id === p.wid);
                 return (
                   <tr key={p.id}>
-                    <td style={{ fontWeight:600, maxWidth:120, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }} title={p.name}>{p.name}</td>
+                    <td style={{ fontWeight:600 }} title={p.name}>{p.name}</td>
                     <td>{wh?.name.split(" - ")[0] || "—"}</td>
                     <td style={{ textAlign:"right", fontWeight:800, color:"#14B8A6" }}>{fmt(p.stock)}</td>
                   </tr>
@@ -2174,7 +2185,7 @@ function ReportsPage({ prods, imps, exps, dark, logActivity, whs }) {
                   const wh = whs.find(w => w.id === p.wid);
                   return (
                     <tr key={p.id}>
-                      <td style={{ fontWeight:600, maxWidth:100, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }} title={p.name}>{p.name}</td>
+                      <td style={{ fontWeight:600 }} title={p.name}>{p.name}</td>
                       <td>{wh?.name.split(" - ")[0] || "—"}</td>
                       <td style={{ textAlign:"right", fontWeight:800, color:"#EF4444" }}>{p.stock}</td>
                       <td><Bdg s={p.status} /></td>

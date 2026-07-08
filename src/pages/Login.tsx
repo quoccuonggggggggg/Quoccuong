@@ -7,7 +7,8 @@ const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [isSignUp, setIsSignUp] = useState(false);
+
+  const [showPassword, setShowPassword] = useState(false);
   const [loginError, setLoginError] = useState(false);
   
   // Forgot Password OTP states
@@ -24,27 +25,14 @@ const Login = () => {
     setLoginError(false);
     
     try {
-      if (isSignUp) {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-        });
-        if (error) throw error;
-        toast.success('Đăng ký thành công! Vui lòng kiểm tra email để xác nhận (nếu có yêu cầu).');
-      } else {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-        if (error) throw error;
-        toast.success('Đăng nhập thành công!');
-      }
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      if (error) throw error;
+      toast.success('Đăng nhập thành công!');
     } catch (error: any) {
-      if (!isSignUp) {
-        setLoginError(true);
-      } else {
-        toast.error(error.message || 'Có lỗi xảy ra');
-      }
+      setLoginError(true);
     } finally {
       setLoading(false);
     }
@@ -316,7 +304,7 @@ const Login = () => {
           Hệ thống Quản lý Kho
         </h2>
         <p className="mt-2 text-center text-sm text-gray-600">
-          {isSignUp ? 'Đăng ký tài khoản mới' : 'Đăng nhập vào hệ thống'}
+          Đăng nhập vào hệ thống
         </p>
       </div>
 
@@ -345,21 +333,28 @@ const Login = () => {
               <label className="block text-sm font-medium text-gray-700">
                 Mật khẩu
               </label>
-              <div className="mt-1">
+              <div className="mt-1 relative">
                 <input
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   required
                   value={password}
                   onChange={(e) => {
                     setPassword(e.target.value);
                     if (loginError) setLoginError(false);
                   }}
-                  className={`appearance-none block w-full px-3 py-2 border rounded-md shadow-sm placeholder-gray-400 focus:outline-none sm:text-sm transition-colors ${
+                  className={`appearance-none block w-full px-3 py-2 pr-10 border rounded-md shadow-sm placeholder-gray-400 focus:outline-none sm:text-sm transition-colors ${
                     loginError
                       ? 'border-red-300 bg-red-50/10 focus:ring-red-500 focus:border-red-500'
                       : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
                   }`}
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                >
+                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                </button>
               </div>
               {loginError && (
                 <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-md flex items-center gap-2 text-sm mt-3">
@@ -375,45 +370,18 @@ const Login = () => {
                 disabled={loading}
                 className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
               >
-                {loading ? 'Đang xử lý...' : (isSignUp ? 'Đăng ký' : 'Đăng nhập')}
+                {loading ? 'Đang xử lý...' : 'Đăng nhập'}
               </button>
 
-              {!isSignUp && (
-                <button
-                  type="button"
-                  onClick={() => setIsForgotPassword(true)}
-                  className="w-full text-center mt-5 text-[#E02424] hover:text-[#C81E1E] text-xs font-semibold uppercase tracking-wider block transition-colors"
-                >
-                  QUÊN MẬT KHẨU?
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={() => setIsForgotPassword(true)}
+                className="w-full text-center mt-5 text-[#E02424] hover:text-[#C81E1E] text-xs font-semibold uppercase tracking-wider block transition-colors"
+              >
+                QUÊN MẬT KHẨU?
+              </button>
             </div>
           </form>
-
-          <div className="mt-6">
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300" />
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-gray-500">
-                  Hoặc
-                </span>
-              </div>
-            </div>
-
-            <div className="mt-6 text-center">
-              <button
-                onClick={() => {
-                  setIsSignUp(!isSignUp);
-                  setLoginError(false);
-                }}
-                className="font-medium text-blue-600 hover:text-blue-500"
-              >
-                {isSignUp ? 'Đã có tài khoản? Đăng nhập' : 'Chưa có tài khoản? Đăng ký'}
-              </button>
-            </div>
-          </div>
         </div>
       </div>
     </div>

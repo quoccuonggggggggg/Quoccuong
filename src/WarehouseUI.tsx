@@ -11,7 +11,7 @@ import {
   LayoutDashboard, Package, Warehouse, ArrowDownToLine, ArrowUpFromLine,
   Truck, Users, BarChart3, Settings, Activity, Bell, Search, Moon, Sun,
   ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Plus, Edit2, Trash2,
-  Eye, Download, AlertTriangle, CheckCircle, XCircle, Clock, TrendingUp,
+  Eye, EyeOff, Download, AlertTriangle, CheckCircle, XCircle, Clock, TrendingUp,
   DollarSign, Phone, Mail, Shield, LogOut, User, X, FileText, MapPin,
   Lock, Boxes, BarChart2, PackageCheck, PackageX, Receipt, FileSpreadsheet,
   Printer, ChevronFirst, ChevronLast, Target, Award, Zap, Menu,
@@ -413,6 +413,9 @@ function Sidebar({ cur, onNav, col, onCol, sbH, onLogout, adminProfile }) {
         { sec: "QUẢN LÝ KHO", items: [
           { id: "warehouses", l: "Kho hàng", I: Warehouse },
           { id: "products",   l: "Sản phẩm",  I: Package }
+        ] },
+        { sec: "PHÂN TÍCH", items: [
+          { id: "reports",    l: "Báo cáo",   I: BarChart3 }
         ] }
       ];
     }
@@ -953,12 +956,12 @@ function ProductsPage({ prods, setProds, whs, showT, logActivity }) {
 /* ═══════════════════════════════════════════════════════════
    WAREHOUSES PAGE
 ═══════════════════════════════════════════════════════════ */
-function WarehousesPage({ whs, setWhs, prods, showT, logActivity }) {
+function WarehousesPage({ whs, setWhs, prods, showT, logActivity, adminProfile }) {
   const [modal, setModal]   = useState(null); const [sel, setSel] = useState(null); const [form, setForm] = useState({}); const [errs, setErrs] = useState({});
   const [activeWh, setActiveWh] = useState(null);
 
   const open = w => { setSel(w); setForm({ ...w, capacity:String(w.capacity), zones:String(w.zones) }); setErrs({}); setModal("edit"); };
-  const del  = async () => { if (prods.some(p => p.wid === sel.id)) { showT("⚠️ Không thể xóa kho còn chứa sản phẩm", "warn"); setModal(null); return; } const { error } = await supabase.from('warehouses').delete().eq('id', sel.id); if (error) { showT("Lỗi xóa kho: " + error.message, "error"); return; } setWhs(p => p.filter(x => x.id !== sel.id)); showT(`🗑️ Đã xóa kho "${sel.name}"`, "error"); logActivity("🗑️", `Xóa kho hàng: ${sel.name}`); setModal(null); };
+  const del  = async () => { if (adminProfile?.role === "warehouse_manager") { showT("⚠️ Quản lý kho không có quyền xóa kho!", "warn"); setModal(null); return; } if (prods.some(p => p.wid === sel.id)) { showT("⚠️ Không thể xóa kho còn chứa sản phẩm", "warn"); setModal(null); return; } const { error } = await supabase.from('warehouses').delete().eq('id', sel.id); if (error) { showT("Lỗi xóa kho: " + error.message, "error"); return; } setWhs(p => p.filter(x => x.id !== sel.id)); showT(`🗑️ Đã xóa kho "${sel.name}"`, "error"); logActivity("🗑️", `Xóa kho hàng: ${sel.name}`); setModal(null); };
   const validate = () => { const e = {}; if (!form.name?.trim()) e.name = "Bắt buộc"; if (isNaN(+form.capacity) || +form.capacity <= 0) e.capacity = "Không hợp lệ"; if (isNaN(+form.zones) || +form.zones <= 0) e.zones = "Không hợp lệ"; if (!form.manager?.trim()) e.manager = "Bắt buộc"; setErrs(e); return !Object.keys(e).length; };
   const save = async () => { if (!validate()) return; const dbData = { ten_kho: form.name, dia_chi: form.location || '', suc_chua: +form.capacity, so_khu_vuc: +form.zones, loai_kho: form.type || 'Kho thường', nhiet_do: form.temperature || '', quan_ly: form.manager, so_dien_thoai: form.phone || '', trang_thai: form.status || 'active' }; const { error } = await supabase.from('warehouses').update(dbData).eq('id', sel.id); if (error) { showT("Lỗi cập nhật kho: " + error.message, "error"); return; } setWhs(p => p.map(x => x.id === sel.id ? { ...x, ...form, capacity:+form.capacity, zones:+form.zones } : x)); showT(`✅ Đã cập nhật kho "${form.name}"`); logActivity("✏️", `Cập nhật thông tin kho: ${form.name}`); setModal(null); };
 
@@ -978,7 +981,9 @@ function WarehousesPage({ whs, setWhs, prods, showT, logActivity }) {
               <div style={{ width:44, height:44, borderRadius:12, background:"linear-gradient(135deg,#2563EB,#06B6D4)", display:"flex", alignItems:"center", justifyContent:"center" }}><Warehouse size={22} color="#fff" /></div>
               <div style={{ display:"flex", gap:5 }}><Bdg s={wh.status} />
                 <button className="btn btnS btnI" onClick={() => open(wh)} title="Sửa"><Edit2 size={12} style={{ color:"#2563EB" }} /></button>
-                <button className="btn btnS btnI" onClick={() => { setSel(wh); setModal("del"); }} title="Xóa"><Trash2 size={12} style={{ color:"#EF4444" }} /></button>
+                {adminProfile?.role !== "warehouse_manager" && (
+                  <button className="btn btnS btnI" onClick={() => { setSel(wh); setModal("del"); }} title="Xóa"><Trash2 size={12} style={{ color:"#EF4444" }} /></button>
+                )}
               </div>
             </div>
             <p style={{ fontWeight:800, fontSize:15, marginBottom:3 }}>{wh.name}</p>
@@ -1236,7 +1241,7 @@ function OrderFormModal({ type, mode, order, prods, setProds, whs, supps, users,
             </Fld>
           </>)}
           <Fld label={`Kho ${isImp ? "nhập" : "xuất"}`}>
-            <select className="inp" value={form.wid} onChange={e => { const w = whs.find(x => x.id === e.target.value); setForm(p => ({ ...p, wid:e.target.value, wname:w?.name || "", items:[] })); }}>{[...whs].sort((a, b) => a.name.localeCompare(b.name)).map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</select>
+            <select className="inp" disabled={isImp} value={form.wid} onChange={e => { const w = whs.find(x => x.id === e.target.value); setForm(p => ({ ...p, wid:e.target.value, wname:w?.name || "", items:[] })); }}>{[...whs].sort((a, b) => a.name.localeCompare(b.name)).map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</select>
           </Fld>
           <Fld label="Ngày tạo"><input type="date" className="inp" value={form.date} onChange={e => setForm(p => ({ ...p, date:e.target.value }))} /></Fld>
           <div style={{ gridColumn:"1/-1" }}><Fld label="Ghi chú"><input className="inp" placeholder="Ghi chú..." value={form.note || ""} onChange={e => setForm(p => ({ ...p, note:e.target.value }))} /></Fld></div>
@@ -1813,6 +1818,7 @@ const EU0 = { name:"", username:"", email:"", phone:"", dept:"", position:"", ro
 function UsersPage({ users, setUsers, showT, loginHistory, logActivity }) {
   const [kf, setKf]       = useState(null); const [srch, setSrch] = useState(""); const [rf, setRf] = useState("all");
   const [modal, setModal] = useState(null); const [sel, setSel] = useState(null); const [form, setForm] = useState(EU0); const [errs, setErrs] = useState({});
+  const [showUserPassword, setShowUserPassword] = useState(false);
   const KS = [
     { k:"all",      l:"Tổng tài khoản",  c:"#2563EB", I:Users,       fn:() => true },
     { k:"Admin",    l:"Quản trị viên",   c:"#8B5CF6", I:Shield,      fn:u => u.role === "Admin" },
@@ -1922,7 +1928,6 @@ function UsersPage({ users, setUsers, showT, loginHistory, logActivity }) {
         <div><div className="pt">Quản lý người dùng</div><div className="ps">{users.length} tài khoản</div></div>
         <div style={{ display:"flex", gap:8 }}>
           {kf && <button className="btn btnS" onClick={() => setKf(null)}><X size={12} />Bỏ lọc</button>}
-          <button className="btn btnP" onClick={() => { setForm(EU0); setErrs({}); setSel(null); setModal("add"); }}><Plus size={13} />Thêm người dùng</button>
         </div>
       </div>
       <div className="g4" style={{ marginBottom:13 }}>{KS.map(cfg => <KpiCard key={cfg.k} label={cfg.l} count={users.filter(cfg.fn).length} color={cfg.c} Icon={cfg.I} active={kf === cfg.k} onClick={() => setKf(kf === cfg.k ? null : cfg.k)} />)}</div>
@@ -2021,8 +2026,27 @@ function UsersPage({ users, setUsers, showT, loginHistory, logActivity }) {
               ))}
               <Fld label="Vai trò"><select className="inp" value={form.role} onChange={e => setForm(p => ({ ...p, role:e.target.value }))}>{Object.entries(RMAP).map(([k, v]) => <option key={k} value={k}>{v.l}</option>)}</select></Fld>
             </div>
-            <div style={{ marginTop:10 }}><Fld label={modal === "add" ? "Mật khẩu (bắt buộc)" : "Mật khẩu mới"} req={modal === "add"} error={errs.password}><input type="password" className="inp" placeholder="Tối thiểu 6 ký tự" value={form.password || ""} onChange={e => setForm(p => ({ ...p, password:e.target.value }))} style={{ borderColor:errs.password ? "#EF4444" : undefined }} /></Fld></div>
-            <div style={{ display:"flex", gap:8, justifyContent:"flex-end", marginTop:17 }}><button className="btn btnS" onClick={close}>Hủy</button><button className="btn btnP" onClick={save}>{modal === "add" ? <><Plus size={13} />Tạo tài khoản</> : <><CheckCircle size={13} />Lưu</>}</button></div>
+            <div style={{ marginTop:10 }}>
+              <Fld label="Mật khẩu hiện tại">
+                <div style={{ position: "relative" }}>
+                  <input
+                    type={showUserPassword ? "text" : "password"}
+                    className="inp"
+                    value={form.password || `${form.username || "user"}@123`}
+                    readOnly
+                    style={{ paddingRight: 40, background: "var(--b2)", cursor: "not-allowed", opacity: 0.8 }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowUserPassword(!showUserPassword)}
+                    style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "var(--t3)", display: "flex", alignItems: "center" }}
+                  >
+                    {showUserPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                  </button>
+                </div>
+              </Fld>
+            </div>
+            <div style={{ display:"flex", gap:8, justifyContent:"flex-end", marginTop:17 }}><button className="btn btnS" onClick={close}>Hủy</button><button className="btn btnP" onClick={save}><CheckCircle size={13} />Lưu</button></div>
           </div>
         </div>,
         document.body
@@ -2247,7 +2271,7 @@ function ReportsPage({ prods, imps, exps, dark, logActivity, whs }) {
 const isPageAllowed = (role, page) => {
   if (role === 'import_staff') return page === 'imports';
   if (role === 'export_staff') return page === 'exports';
-  if (role === 'warehouse_manager') return ['warehouses', 'products'].includes(page);
+  if (role === 'warehouse_manager') return ['warehouses', 'products', 'reports'].includes(page);
   return true;
 };
 
@@ -2782,7 +2806,7 @@ export default function App() {
   const showT = (msg, type = "success") => { setToast({ msg, type }); setTimeout(() => setToast(null), 3500); };
   const nc    = prods.filter(p => ["low","critical","out"].includes(p.status)).length;
   const ml    = sbH ? 0 : (col ? 68 : 256);
-  const props = { prods, setProds, whs, setWhs, imps, setImps, exps, setExps, users, setUsers, supps, setSupps, showT, dark, loginHistory, logActivity };
+  const props = { prods, setProds, whs, setWhs, imps, setImps, exps, setExps, users, setUsers, supps, setSupps, showT, dark, loginHistory, logActivity, adminProfile };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();

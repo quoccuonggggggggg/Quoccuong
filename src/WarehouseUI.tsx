@@ -305,6 +305,15 @@ const generateUniqueLocation = (whId, whs, prods) => {
   return `${prefix}-99-99`;
 };
 
+const getCategoryByWarehouse = (whName) => {
+  if (!whName) return "Điện tử";
+  const name = whName.toLowerCase();
+  if (name.includes("kho a")) return "Điện tử";
+  if (name.includes("kho b")) return "Nội thất";
+  if (name.includes("kho c")) return "Điện gia dụng";
+  return "Khác";
+};
+
 const STMAP = { active:{l:"Hoạt động",c:"bg"}, low:{l:"Tồn thấp",c:"by"}, critical:{l:"Sắp hết hàng",c:"br"}, out:{l:"Hết hàng",c:"br"}, inactive:{l:"Ngừng HĐ",c:"bgr"}, completed:{l:"Hoàn thành",c:"bg"}, processing:{l:"Đang xử lý",c:"bb"}, pending:{l:"Chờ duyệt",c:"by"}, cancelled:{l:"Đã hủy",c:"bgr"} };
 const RMAP  = { Admin:{l:"Admin",c:"bp"}, Manager:{l:"Quản lý",c:"bb"}, Staff:{l:"Nhân viên",c:"bg"}, WarehouseStaff:{l:"NV Kho",c:"bc"}, Accountant:{l:"Kế toán",c:"by"} };
 const RGRAD = { Admin:"8B5CF6,2563EB", Manager:"2563EB,06B6D4", Staff:"14B8A6,2563EB", WarehouseStaff:"06B6D4,14B8A6", Accountant:"F59E0B,EF4444" };
@@ -758,7 +767,7 @@ function Dashboard({ prods, whs, imps, exps, dark, logActivity }) {
 ═══════════════════════════════════════════════════════════ */
 const EP0 = { name:"", sku:"", category:"Điện tử", buyPrice:"", sellPrice:"", stock:"0", wid:"WH001", loc:"", img:"📦", desc:"" };
 
-function ProductsPage({ prods, setProds, whs, showT }) {
+function ProductsPage({ prods, setProds, whs, showT, logActivity }) {
   const [srch, setSrch]   = useState(""); const [catF, setCatF] = useState("all"); const [whF, setWhF] = useState("all"); const [stF, setStF] = useState("all");
   const [modal, setModal] = useState(null); const [sel, setSel] = useState(null);
   const [errs, setErrs] = useState({});
@@ -842,8 +851,10 @@ function ProductsPage({ prods, setProds, whs, showT }) {
         <div><div className="pt">Quản lý sản phẩm</div><div className="ps">{filtered.length} SP · tổng tồn: {prods.reduce((s, p) => s + p.stock, 0)} đv</div></div>
         <button className="btn btnP" onClick={() => {
           const defaultWh = whs[0]?.id || "";
+          const wh = whs.find(w => w.id === defaultWh);
+          const defaultCat = getCategoryByWarehouse(wh?.name);
           const autoLoc = generateUniqueLocation(defaultWh, whs, prods);
-          setForm({ ...EP0, wid: defaultWh, loc: autoLoc, category: dynamicCats[0] || "Điện tử", stock: "0" });
+          setForm({ ...EP0, wid: defaultWh, loc: autoLoc, category: defaultCat, stock: "0" });
           setErrs({});
           setSel(null);
           setModal("add");
@@ -914,8 +925,10 @@ function ProductsPage({ prods, setProds, whs, showT }) {
               <Fld label="Kho chứa">
                 <select className="inp" value={form.wid} onChange={e => {
                   const newWhId = e.target.value;
+                  const wh = whs.find(w => w.id === newWhId);
+                  const defaultCat = getCategoryByWarehouse(wh?.name);
                   const autoLoc = generateUniqueLocation(newWhId, whs, prods);
-                  setForm(p => ({ ...p, wid: newWhId, loc: autoLoc }));
+                  setForm(p => ({ ...p, wid: newWhId, loc: autoLoc, category: defaultCat }));
                 }}>
                   {[...whs].sort((a, b) => a.name.localeCompare(b.name)).map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
                 </select>
@@ -1183,7 +1196,33 @@ function OrderFormModal({ type, mode, order, prods, setProds, whs, supps, users,
         <div className="g2" style={{ gap:10, marginBottom:13 }}>
           {isImp ? (<>
             <Fld label="Nhà cung cấp" req error={errs.sid}>
-              <select className="inp" style={{ borderColor:errs.sid ? "#EF4444" : undefined }} value={form.sid} onChange={e => { const s = supps.find(x => x.id === e.target.value); setForm(p => ({ ...p, sid:e.target.value, sname:s?.name || "" })); }}>
+              <select className="inp" style={{ borderColor:errs.sid ? "#EF4444" : undefined }} value={form.sid} onChange={e => {
+                const s = supps.find(x => x.id === e.target.value);
+                let nextWid = form.wid;
+                let nextWname = form.wname;
+                if (s) {
+                  let whKw = "";
+                  if (s.name === "CMM Electronics" || s.name === "Apple Việt Nam") whKw = "Kho A";
+                  else if (s.name === "Nội Thất Sài Gòn" || s.name === "IKEA") whKw = "Kho B";
+                  else if (s.name === "Schneider Việt Nam" || s.name === "La Cornue Việt Nam") whKw = "Kho C";
+                  
+                  if (whKw) {
+                    const targetWh = whs.find(w => w.name.includes(whKw));
+                    if (targetWh) {
+                      nextWid = targetWh.id;
+                      nextWname = targetWh.name;
+                    }
+                  }
+                }
+                setForm(p => ({
+                  ...p,
+                  sid: e.target.value,
+                  sname: s?.name || "",
+                  wid: nextWid,
+                  wname: nextWname,
+                  items: []
+                }));
+              }}>
                 {supps.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
             </Fld>

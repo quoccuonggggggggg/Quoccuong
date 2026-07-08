@@ -2292,8 +2292,8 @@ function ReportsPage({ prods, imps, exps, dark, logActivity, whs, adminProfile }
 }
 
 const isPageAllowed = (role, page) => {
-  if (role === 'import_staff') return page === 'imports';
-  if (role === 'export_staff') return page === 'exports';
+  if (role === 'import_staff') return ['imports', 'reports'].includes(page);
+  if (role === 'export_staff') return ['exports', 'reports'].includes(page);
   if (role === 'warehouse_manager') return ['warehouses', 'products', 'reports'].includes(page);
   return true;
 };

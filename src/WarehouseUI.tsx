@@ -303,11 +303,11 @@ const generateUniqueLocation = (whId, whs, prods, sku) => {
 };
 
 const getCategoryByWarehouse = (whName) => {
-  if (!whName) return "Điện tử";
+  if (!whName) return "Laptop";
   const name = whName.toLowerCase();
-  if (name.includes("kho a")) return "Điện tử";
-  if (name.includes("kho b")) return "Nội thất";
-  if (name.includes("kho c")) return "Điện gia dụng";
+  if (name.includes("kho a")) return "Laptop";
+  if (name.includes("kho b")) return "Sofa";
+  if (name.includes("kho c")) return "Bếp";
   return "Khác";
 };
 
@@ -330,11 +330,11 @@ const getSkuAbbreviation = (sku) => {
 };
 
 const getCategoriesForWarehouse = (whName) => {
-  if (!whName) return ["Điện tử"];
+  if (!whName) return ["Laptop"];
   const name = whName.toLowerCase();
-  if (name.includes("kho a")) return ["Điện tử", "Âm thanh", "Phụ kiện"];
-  if (name.includes("kho b")) return ["Nội thất", "An ninh"];
-  if (name.includes("kho c")) return ["Điện gia dụng", "Văn phòng", "Điện", "Mạng"];
+  if (name.includes("kho a")) return ["Laptop", "Loa", "Chuột", "Sạc dự phòng", "Điện thoại", "Đồng hồ", "Tai nghe", "Máy tính bảng", "Thiết bị giải trí", "Thiết bị mạng"];
+  if (name.includes("kho b")) return ["Sofa", "Bàn", "Ghế", "Đèn", "Tranh", "Đồng hồ", "Nệm", "Tủ", "Bộ trà", "Kệ", "Thảm", "Tượng", "Bàn ăn", "Bình hoa", "Giường"];
+  if (name.includes("kho c")) return ["Bếp", "Tủ nướng", "Máy làm nước", "Máy rửa chén", "Ấm nước", "Nồi cơm điện", "Nồi", "Tủ lạnh", "Máy hút mùi", "Điều hòa"];
   return ["Khác"];
 };
 

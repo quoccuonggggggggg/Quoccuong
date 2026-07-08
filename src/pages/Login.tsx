@@ -124,8 +124,8 @@ const Login = () => {
           className="absolute inset-0 z-0 bg-cover bg-center" 
           style={{ 
             backgroundImage: 'url("/bg-login.jpg")', 
-            filter: 'blur(5px) brightness(0.9)', 
-            opacity: 0.25 
+            filter: 'blur(2px) brightness(0.95)', 
+            opacity: 0.45 
           }} 
         />
         <div className="relative z-10 w-full">
@@ -308,8 +308,8 @@ const Login = () => {
         className="absolute inset-0 z-0 bg-cover bg-center" 
         style={{ 
           backgroundImage: 'url("/bg-login.jpg")', 
-          filter: 'blur(5px) brightness(0.9)', 
-          opacity: 0.25 
+          filter: 'blur(2px) brightness(0.95)', 
+          opacity: 0.45 
         }} 
       />
       <div className="relative z-10 w-full">

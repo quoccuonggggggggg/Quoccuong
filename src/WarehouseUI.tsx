@@ -341,7 +341,7 @@ const getCategoriesForWarehouse = (whName) => {
 
 const STMAP = { active:{l:"Hoạt động",c:"bg"}, low:{l:"Tồn thấp",c:"by"}, critical:{l:"Sắp hết hàng",c:"br"}, out:{l:"Hết hàng",c:"br"}, inactive:{l:"Ngừng HĐ",c:"bgr"}, completed:{l:"Hoàn thành",c:"bg"}, processing:{l:"Đang xử lý",c:"bb"}, pending:{l:"Chờ duyệt",c:"by"}, cancelled:{l:"Đã hủy",c:"bgr"} };
 const RMAP  = { Admin:{l:"Admin",c:"bp"}, Manager:{l:"Quản lý",c:"bb"}, Staff:{l:"Nhân viên",c:"bg"}, WarehouseStaff:{l:"NV Kho",c:"bc"}, Accountant:{l:"Kế toán",c:"by"} };
-const RGRAD = { Admin:"8B5CF6,2563EB", Manager:"2563EB,06B6D4", Staff:"14B8A6,2563EB", WarehouseStaff:"06B6D4,14B8A6", Accountant:"F59E0B,EF4444" };
+const RGRAD = { Admin:"7C3AED,4F46E5", Manager:"1D4ED8,0369A1", Staff:"0F766E,059669", WarehouseStaff:"0E7490,0369A1", Accountant:"B45309,92400E" };
 
 const Bdg = ({ s, r }) => { const m = s ? STMAP[s] : r ? RMAP[r] : null; return m ? <span className={`bdg ${m.c}`}>{m.l}</span> : null; };
 const TT  = ({ active, payload, label }) => !active || !payload?.length ? null : (
@@ -2261,7 +2261,7 @@ function ReportsPage({ prods, imps, exps, dark, logActivity, whs, adminProfile }
   };
   return (
     <div className="af">
-      <div className="ph"><div><div className="pt">Báo cáo & thống kê</div><div className="ps">Dữ liệu thực từ hệ thống</div></div><div style={{ display:"flex", gap:8 }}><button className="btn btnS" onClick={exportExcel}><FileSpreadsheet size={13} />Excel</button><button className="btn btnS" onClick={() => window.print()}><FileText size={13} />PDF</button><button className="btn btnP" onClick={() => window.print()}><Printer size={13} />In báo cáo</button></div></div>
+      <div className="ph"><div><div className="pt">Báo cáo & thống kê</div><div className="ps">Dữ liệu thực từ hệ thống</div></div><div style={{ display:"flex", gap:8 }}><button className="btn btnS" onClick={exportExcel}><FileSpreadsheet size={13} />Excel</button><button className="btn btnP" onClick={() => window.print()}><Printer size={13} />In báo cáo</button></div></div>
       {!["warehouse_manager", "import_staff", "export_staff"].includes(adminProfile?.role) && (
         <div className="g4" style={{ marginBottom:17 }}>{[{ l:"Tổng nhập (HT)", v:fmtM(imps.filter(o => o.status === "completed").reduce((s, o) => s + orderTotal(o.items), 0)), c:"#2563EB" }, { l:"Tổng xuất (HT)", v:fmtM(exps.filter(o => o.status === "completed").reduce((s, o) => s + orderTotal(o.items), 0)), c:"#14B8A6" }, { l:"Tổng tồn kho", v:`${prods.reduce((s, p) => s + p.stock, 0)} SP`, c:"#8B5CF6" }, { l:"Giá trị tồn", v:fmtM(prods.reduce((s, p) => s + p.stock * p.buyPrice, 0)), c:"#F59E0B" }].map(({ l, v, c }) => <div key={l} className="card"><p style={{ fontSize:12, color:"var(--t2)", fontWeight:600 }}>{l}</p><p style={{ fontSize:22, fontWeight:800, marginTop:7, color:c }}>{v}</p></div>)}</div>
       )}

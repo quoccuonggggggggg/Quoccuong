@@ -1162,7 +1162,7 @@ function WarehousesPage({ whs, setWhs, prods, showT, logActivity, adminProfile, 
    ORDER FORM MODAL (dùng chung nhập & xuất)
 ═══════════════════════════════════════════════════════════ */
 
-function OrderFormModal({ type, mode, order, prods, setProds, whs, supps, users, showT, onSave, onClose }) {
+function OrderFormModal({ type, mode, order, prods, setProds, whs, supps, users, showT, onSave, onClose, adminProfile }) {
   const isImp = type === "imp";
   const importUsers = users.filter(u => u.role === "Admin" || u.name === "Admin Hệ Thống" || u.position?.toLowerCase().includes("nhập") || u.name?.toLowerCase().includes("nhập"));
   const exportUsers = users.filter(u => u.role === "Admin" || u.name === "Admin Hệ Thống" || u.position?.toLowerCase().includes("xuất") || u.name?.toLowerCase().includes("xuất"));
@@ -1341,7 +1341,15 @@ function OrderFormModal({ type, mode, order, prods, setProds, whs, supps, users,
               </select>
             )}
           </Fld>
-          <Fld label="Ngày tạo"><input type="date" className="inp" disabled value={form.date} /></Fld>
+          <Fld label="Ngày tạo">
+            <input 
+              type="date" 
+              className="inp" 
+              disabled={adminProfile?.role !== "Admin"} 
+              value={form.date} 
+              onChange={e => setForm(p => ({ ...p, date: e.target.value }))} 
+            />
+          </Fld>
           <div style={{ gridColumn:"1/-1" }}><Fld label="Ghi chú"><input className="inp" placeholder="Ghi chú..." value={form.note || ""} onChange={e => setForm(p => ({ ...p, note:e.target.value }))} /></Fld></div>
         </div>
         {/* Items */}
@@ -1481,7 +1489,7 @@ const IMP_KPI = [
   { k:"cancelled",  l:"Đã hủy",      c:"#EF4444", I:XCircle      },
 ];
 
-function ImportsPage({ imps, setImps, prods, setProds, whs, supps, users, showT, logActivity }) {
+function ImportsPage({ imps, setImps, prods, setProds, whs, supps, users, showT, logActivity, adminProfile }) {
   const [kpi, setKpi]     = useState(null); const [modal, setModal] = useState(null); const [sel, setSel] = useState(null); const [srch, setSrch] = useState("");
   const [sortOrder, setSortOrder] = useState("newest");
   const [filterDate, setFilterDate] = useState("");
@@ -1634,7 +1642,7 @@ function ImportsPage({ imps, setImps, prods, setProds, whs, supps, users, showT,
         </div>
       </div>
       {modal === "view" && sel && <OrderViewModal order={sel} isImp onClose={() => { setModal(null); setSel(null); }} />}
-      {modal === "add" && <OrderFormModal type="imp" mode="add" order={null} prods={prods} setProds={setProds} whs={whs} supps={supps} users={users} showT={showT} onSave={handleSave} onClose={() => { setModal(null); setSel(null); }} />}
+      {modal === "add" && <OrderFormModal type="imp" mode="add" order={null} prods={prods} setProds={setProds} whs={whs} supps={supps} users={users} showT={showT} onSave={handleSave} onClose={() => { setModal(null); setSel(null); }} adminProfile={adminProfile} />}
       {modal === "del" && sel && <DelModal title="Xóa phiếu nhập?" msg={`Xóa phiếu ${sel.id}?${sel.status === "completed" ? " Tồn kho sẽ bị trừ lại." : ""}`} onOk={handleDel} onClose={() => { setModal(null); setSel(null); }} />}
       {modal === "cancel" && sel && <DelModal title="Hủy phiếu nhập?" msg={`Bạn có chắc chắn muốn hủy phiếu ${sel.id}?${sel.status === "completed" ? " Tồn kho sẽ bị trừ lại." : ""}`} onOk={handleCancel} onClose={() => { setModal(null); setSel(null); }} />}
     </div>
@@ -1650,7 +1658,7 @@ const EXP_KPI = [
   { k:"cancelled",  l:"Đã hủy",     c:"#EF4444", I:PackageX     },
 ];
 
-function ExportsPage({ exps, setExps, prods, setProds, whs, users, showT, logActivity }) {
+function ExportsPage({ exps, setExps, prods, setProds, whs, users, showT, logActivity, adminProfile }) {
   const [kpi, setKpi]     = useState(null); const [modal, setModal] = useState(null); const [sel, setSel] = useState(null); const [srch, setSrch] = useState("");
   const [sortOrder, setSortOrder] = useState("newest");
   const [filterDate, setFilterDate] = useState("");
@@ -1802,7 +1810,7 @@ function ExportsPage({ exps, setExps, prods, setProds, whs, users, showT, logAct
         </div>
       </div>
       {modal === "view" && sel && <OrderViewModal order={sel} isImp={false} onClose={() => { setModal(null); setSel(null); }} />}
-      {modal === "add" && <OrderFormModal type="exp" mode="add" order={null} prods={prods} setProds={setProds} whs={whs} supps={[]} users={users} showT={showT} onSave={handleSave} onClose={() => { setModal(null); setSel(null); }} />}
+      {modal === "add" && <OrderFormModal type="exp" mode="add" order={null} prods={prods} setProds={setProds} whs={whs} supps={[]} users={users} showT={showT} onSave={handleSave} onClose={() => { setModal(null); setSel(null); }} adminProfile={adminProfile} />}
       {modal === "del" && sel && <DelModal title="Xóa phiếu xuất?" msg={`Xóa phiếu ${sel.id}?${sel.status === "completed" ? " Tồn kho sẽ được hoàn lại." : ""}`} onOk={handleDel} onClose={() => { setModal(null); setSel(null); }} />}
       {modal === "cancel" && sel && <DelModal title="Hủy phiếu xuất?" msg={`Bạn có chắc chắn muốn hủy phiếu ${sel.id}?${sel.status === "completed" ? " Tồn kho sẽ được hoàn lại." : ""}`} onOk={handleCancel} onClose={() => { setModal(null); setSel(null); }} />}
     </div>

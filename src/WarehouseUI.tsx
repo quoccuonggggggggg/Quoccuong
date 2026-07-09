@@ -1127,7 +1127,7 @@ function WarehousesPage({ whs, setWhs, prods, showT, logActivity, adminProfile }
    ORDER FORM MODAL (dùng chung nhập & xuất)
 ═══════════════════════════════════════════════════════════ */
 const getWhForSupplier = (s, whs) => {
-  if (!s) return { id: whs[0]?.id || "", name: whs[0]?.name || "" };
+  if (!s) return whs[0] || { id: "", name: "", status: "active" };
   const nameLower = s.name.toLowerCase();
   let whKw = "";
   if (nameLower.includes("cmm") || nameLower.includes("apple")) whKw = "Kho A";
@@ -1137,10 +1137,10 @@ const getWhForSupplier = (s, whs) => {
   if (whKw) {
     const targetWh = whs.find(w => w.name.includes(whKw));
     if (targetWh) {
-      return { id: targetWh.id, name: targetWh.name };
+      return targetWh;
     }
   }
-  return { id: whs[0]?.id || "", name: whs[0]?.name || "" };
+  return whs[0] || { id: "", name: "", status: "active" };
 };
 
 function OrderFormModal({ type, mode, order, prods, setProds, whs, supps, users, showT, onSave, onClose }) {
@@ -1154,9 +1154,16 @@ function OrderFormModal({ type, mode, order, prods, setProds, whs, supps, users,
         wid:order.wid, wname:order.wname, status:order.status, date:order.date, note:order.note || "", items:order.items.map(i => ({ ...i })),
       };
     }
-    const defaultWh = isImp ? getWhForSupplier(supps[0], whs) : { id: whs[0]?.id || "", name: whs[0]?.name || "" };
+    const activeSupps = supps.filter(s => {
+      if (s.status === "inactive") return false;
+      const wh = getWhForSupplier(s, whs);
+      return wh.status !== "inactive";
+    });
+    const defaultSup = activeSupps[0] || supps[0];
+    const activeWhs = whs.filter(w => w.status !== "inactive");
+    const defaultWh = isImp ? getWhForSupplier(defaultSup, whs) : (activeWhs[0] || whs[0] || { id: "", name: "", status: "active" });
     return {
-      ...(isImp ? { sid:supps[0]?.id || "", sname:supps[0]?.name || "", receiver:"" } : { customer:"", handler:"" }),
+      ...(isImp ? { sid:defaultSup?.id || "", sname:defaultSup?.name || "", receiver:"" } : { customer:"", handler:"" }),
       wid:defaultWh.id, wname:defaultWh.name, status:"completed", date:today(), note:"", items:[],
     };
   });
@@ -1275,7 +1282,19 @@ function OrderFormModal({ type, mode, order, prods, setProds, whs, supps, users,
                   items: []
                 }));
               }}>
-                {supps.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                {supps.map(s => {
+                  const isWhInactive = getWhForSupplier(s, whs).status === "inactive";
+                  const isDisabled = (s.status === "inactive" || isWhInactive) && s.id !== form.sid;
+                  let suffix = "";
+                  if (s.status === "inactive") suffix = " (Ngừng giao dịch)";
+                  else if (isWhInactive) suffix = " (Kho nhập ngừng hoạt động)";
+                  
+                  return (
+                    <option key={s.id} value={s.id} disabled={isDisabled}>
+                      {s.name}{suffix}
+                    </option>
+                  );
+                })}
               </select>
             </Fld>
             <Fld label="Người xử lý">
@@ -1291,7 +1310,16 @@ function OrderFormModal({ type, mode, order, prods, setProds, whs, supps, users,
             {isImp ? (
               <input type="text" className="inp" disabled value={form.wname || ""} />
             ) : (
-              <select className="inp" value={form.wid} onChange={e => { const w = whs.find(x => x.id === e.target.value); setForm(p => ({ ...p, wid:e.target.value, wname:w?.name || "", items:[] })); }}>{[...whs].sort((a, b) => a.name.localeCompare(b.name)).map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</select>
+              <select className="inp" value={form.wid} onChange={e => { const w = whs.find(x => x.id === e.target.value); setForm(p => ({ ...p, wid:e.target.value, wname:w?.name || "", items:[] })); }}>
+                {[...whs].sort((a, b) => a.name.localeCompare(b.name)).map(w => {
+                  const isDisabled = w.status === "inactive" && w.id !== form.wid;
+                  return (
+                    <option key={w.id} value={w.id} disabled={isDisabled}>
+                      {w.name} {w.status === "inactive" ? "(Ngừng hoạt động)" : ""}
+                    </option>
+                  );
+                })}
+              </select>
             )}
           </Fld>
           <Fld label="Ngày tạo"><input type="date" className="inp" disabled value={form.date} /></Fld>

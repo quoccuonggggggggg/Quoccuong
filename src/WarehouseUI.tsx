@@ -1126,16 +1126,39 @@ function WarehousesPage({ whs, setWhs, prods, showT, logActivity, adminProfile }
 /* ═══════════════════════════════════════════════════════════
    ORDER FORM MODAL (dùng chung nhập & xuất)
 ═══════════════════════════════════════════════════════════ */
+const getWhForSupplier = (s, whs) => {
+  if (!s) return { id: whs[0]?.id || "", name: whs[0]?.name || "" };
+  const nameLower = s.name.toLowerCase();
+  let whKw = "";
+  if (nameLower.includes("cmm") || nameLower.includes("apple")) whKw = "Kho A";
+  else if (nameLower.includes("sài gòn") || nameLower.includes("sai gon") || nameLower.includes("ikea")) whKw = "Kho B";
+  else if (nameLower.includes("schneider") || nameLower.includes("cornue")) whKw = "Kho C";
+  
+  if (whKw) {
+    const targetWh = whs.find(w => w.name.includes(whKw));
+    if (targetWh) {
+      return { id: targetWh.id, name: targetWh.name };
+    }
+  }
+  return { id: whs[0]?.id || "", name: whs[0]?.name || "" };
+};
+
 function OrderFormModal({ type, mode, order, prods, setProds, whs, supps, users, showT, onSave, onClose }) {
   const isImp = type === "imp";
   const importUsers = users.filter(u => u.role === "Admin" || u.name === "Admin Hệ Thống" || u.position?.toLowerCase().includes("nhập") || u.name?.toLowerCase().includes("nhập"));
   const exportUsers = users.filter(u => u.role === "Admin" || u.name === "Admin Hệ Thống" || u.position?.toLowerCase().includes("xuất") || u.name?.toLowerCase().includes("xuất"));
-  const [form, setForm] = useState(() => order ? {
-    ...(isImp ? { sid:order.sid, sname:order.sname, receiver:order.receiver } : { customer:order.customer, handler:order.handler }),
-    wid:order.wid, wname:order.wname, status:order.status, date:order.date, note:order.note || "", items:order.items.map(i => ({ ...i })),
-  } : {
-    ...(isImp ? { sid:supps[0]?.id || "", sname:supps[0]?.name || "", receiver:"" } : { customer:"", handler:"" }),
-    wid:whs[0]?.id || "", wname:whs[0]?.name || "", status:"completed", date:today(), note:"", items:[],
+  const [form, setForm] = useState(() => {
+    if (order) {
+      return {
+        ...(isImp ? { sid:order.sid, sname:order.sname, receiver:order.receiver } : { customer:order.customer, handler:order.handler }),
+        wid:order.wid, wname:order.wname, status:order.status, date:order.date, note:order.note || "", items:order.items.map(i => ({ ...i })),
+      };
+    }
+    const defaultWh = isImp ? getWhForSupplier(supps[0], whs) : { id: whs[0]?.id || "", name: whs[0]?.name || "" };
+    return {
+      ...(isImp ? { sid:supps[0]?.id || "", sname:supps[0]?.name || "", receiver:"" } : { customer:"", handler:"" }),
+      wid:defaultWh.id, wname:defaultWh.name, status:"completed", date:today(), note:"", items:[],
+    };
   });
   const [errs, setErrs] = useState({});
   const whProds = prods.filter(p => p.wid === form.wid);
@@ -1242,36 +1265,21 @@ function OrderFormModal({ type, mode, order, prods, setProds, whs, supps, users,
             <Fld label="Nhà cung cấp" req error={errs.sid}>
               <select className="inp" style={{ borderColor:errs.sid ? "#EF4444" : undefined }} value={form.sid} onChange={e => {
                 const s = supps.find(x => x.id === e.target.value);
-                let nextWid = form.wid;
-                let nextWname = form.wname;
-                if (s) {
-                  let whKw = "";
-                  if (s.name === "CMM Electronics" || s.name === "Apple Việt Nam") whKw = "Kho A";
-                  else if (s.name === "Nội Thất Sài Gòn" || s.name === "IKEA") whKw = "Kho B";
-                  else if (s.name === "Schneider Việt Nam" || s.name === "La Cornue Việt Nam") whKw = "Kho C";
-                  
-                  if (whKw) {
-                    const targetWh = whs.find(w => w.name.includes(whKw));
-                    if (targetWh) {
-                      nextWid = targetWh.id;
-                      nextWname = targetWh.name;
-                    }
-                  }
-                }
+                const nextWh = getWhForSupplier(s, whs);
                 setForm(p => ({
                   ...p,
                   sid: e.target.value,
                   sname: s?.name || "",
-                  wid: nextWid,
-                  wname: nextWname,
+                  wid: nextWh.id,
+                  wname: nextWh.name,
                   items: []
                 }));
               }}>
                 {supps.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
             </Fld>
-            <Fld label="Người nhận">
-              <select className="inp" value={form.receiver} onChange={e => setForm(p => ({ ...p, receiver:e.target.value }))}><option value="">Chọn người nhận</option>{importUsers.map(u => <option key={u.id}>{u.name}</option>)}</select>
+            <Fld label="Người xử lý">
+              <select className="inp" value={form.receiver} onChange={e => setForm(p => ({ ...p, receiver:e.target.value }))}><option value="">Chọn người xử lý</option>{importUsers.map(u => <option key={u.id}>{u.name}</option>)}</select>
             </Fld>
           </>) : (<>
             <Fld label="Khách hàng / Đơn vị nhận" req error={errs.customer}><input className="inp" placeholder="Tên công ty / cá nhân" value={form.customer || ""} onChange={e => setForm(p => ({ ...p, customer:e.target.value }))} style={{ borderColor:errs.customer ? "#EF4444" : undefined }} /></Fld>
@@ -1280,7 +1288,11 @@ function OrderFormModal({ type, mode, order, prods, setProds, whs, supps, users,
             </Fld>
           </>)}
           <Fld label={`Kho ${isImp ? "nhập" : "xuất"}`}>
-            <select className="inp" disabled={isImp} value={form.wid} onChange={e => { const w = whs.find(x => x.id === e.target.value); setForm(p => ({ ...p, wid:e.target.value, wname:w?.name || "", items:[] })); }}>{[...whs].sort((a, b) => a.name.localeCompare(b.name)).map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</select>
+            {isImp ? (
+              <input type="text" className="inp" disabled value={form.wname || ""} />
+            ) : (
+              <select className="inp" value={form.wid} onChange={e => { const w = whs.find(x => x.id === e.target.value); setForm(p => ({ ...p, wid:e.target.value, wname:w?.name || "", items:[] })); }}>{[...whs].sort((a, b) => a.name.localeCompare(b.name)).map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</select>
+            )}
           </Fld>
           <Fld label="Ngày tạo"><input type="date" className="inp" disabled value={form.date} /></Fld>
           <div style={{ gridColumn:"1/-1" }}><Fld label="Ghi chú"><input className="inp" placeholder="Ghi chú..." value={form.note || ""} onChange={e => setForm(p => ({ ...p, note:e.target.value }))} /></Fld></div>
@@ -1393,7 +1405,7 @@ function OrderViewModal({ order, isImp, onEdit, onClose }) {
       <div className="mb mb-lg as">
         <div className="mt">{isImp ? <Receipt size={17} style={{ color:"#2563EB" }} /> : <FileText size={17} style={{ color:"#06B6D4" }} />}Chi tiết phiếu {isImp ? "nhập" : "xuất"} {order.id}<button className="btn btnS btnI" style={{ marginLeft:"auto" }} onClick={onClose}><X size={13} /></button></div>
         <div className="g2" style={{ gap:9, marginBottom:12 }}>
-          {(isImp ? [["Nhà cung cấp", order.sname], ["Người nhận", order.receiver || "—"]] : [["Khách hàng", order.customer], ["Người xử lý", order.handler || "—"]]).map(([k, v]) => (<div key={k} style={{ background:"var(--b2)", borderRadius:9, padding:"9px 11px" }}><p style={{ fontSize:11, color:"var(--t3)", fontWeight:600 }}>{k}</p><p style={{ fontSize:13, fontWeight:600, marginTop:2 }}>{v}</p></div>))}
+          {(isImp ? [["Nhà cung cấp", order.sname], ["Người xử lý", order.receiver || "—"]] : [["Khách hàng", order.customer], ["Người xử lý", order.handler || "—"]]).map(([k, v]) => (<div key={k} style={{ background:"var(--b2)", borderRadius:9, padding:"9px 11px" }}><p style={{ fontSize:11, color:"var(--t3)", fontWeight:600 }}>{k}</p><p style={{ fontSize:13, fontWeight:600, marginTop:2 }}>{v}</p></div>))}
           {[["Kho", order.wname], ["Ngày", order.date], ["Ghi chú", order.note || "—"]].map(([k, v]) => (<div key={k} style={{ background:"var(--b2)", borderRadius:9, padding:"9px 11px" }}><p style={{ fontSize:11, color:"var(--t3)", fontWeight:600 }}>{k}</p><p style={{ fontSize:13, fontWeight:600, marginTop:2 }}>{v}</p></div>))}
           <div style={{ background:"var(--b2)", borderRadius:9, padding:"9px 11px" }}><p style={{ fontSize:11, color:"var(--t3)", fontWeight:600 }}>Trạng thái</p><Bdg s={order.status} /></div>
         </div>
@@ -1541,7 +1553,7 @@ function ImportsPage({ imps, setImps, prods, setProds, whs, supps, users, showT,
       </div>
       <div className="card" style={{ padding:0, overflow:"hidden" }}>
         <table className="dt">
-          <thead><tr><th>Mã phiếu</th><th>Nhà cung cấp</th><th>Kho nhập</th><th>Số SP</th><th>Tổng tiền</th><th>Người nhận</th><th>Ngày</th><th>Trạng thái</th><th style={{ textAlign:"center" }}>Thao tác</th></tr></thead>
+          <thead><tr><th>Mã phiếu</th><th>Nhà cung cấp</th><th>Kho nhập</th><th>Số SP</th><th>Tổng tiền</th><th>Người xử lý</th><th>Ngày</th><th>Trạng thái</th><th style={{ textAlign:"center" }}>Thao tác</th></tr></thead>
           <tbody>
             {filtered.length === 0 && <tr><td colSpan={9} style={{ textAlign:"center", padding:"26px 0", color:"var(--t3)" }}>Không có phiếu nhập phù hợp</td></tr>}
             {filtered.map(o => (

@@ -342,6 +342,28 @@ const getCategoriesForWarehouse = (whName) => {
 const STMAP = { active:{l:"Hoạt động",c:"bg"}, low:{l:"Tồn thấp",c:"by"}, critical:{l:"Sắp hết hàng",c:"br"}, out:{l:"Hết hàng",c:"br"}, inactive:{l:"Ngừng HĐ",c:"bgr"}, completed:{l:"Hoàn thành",c:"bg"}, processing:{l:"Đang xử lý",c:"bb"}, pending:{l:"Chờ duyệt",c:"by"}, cancelled:{l:"Đã hủy",c:"bgr"} };
 const RMAP  = { Admin:{l:"Admin",c:"bp"}, Manager:{l:"Quản lý",c:"bb"}, Staff:{l:"Nhân viên",c:"bg"}, WarehouseStaff:{l:"NV Kho",c:"bc"}, Accountant:{l:"Kế toán",c:"by"} };
 const RGRAD = { Admin:"7C3AED,4F46E5", Manager:"1D4ED8,0369A1", Staff:"0F766E,059669", WarehouseStaff:"0E7490,0369A1", Accountant:"B45309,92400E" };
+const AVATAR_PALETTE = [
+  "#7C3AED,#6D28D9",  // violet
+  "#1D4ED8,#1E3A8A",  // blue
+  "#0D9488,#065F46",  // teal
+  "#B45309,#92400E",  // amber
+  "#DB2777,#9D174D",  // pink
+  "#059669,#064E3B",  // green
+  "#DC2626,#991B1B",  // red
+  "#6D28D9,#4C1D95",  // purple
+  "#0369A1,#0C4A6E",  // sky
+  "#C2410C,#7C2D12",  // orange
+  "#0F766E,#134E4A",  // dark teal
+  "#7E22CE,#581C87",  // deep purple
+];
+const getAvatarGrad = (str) => {
+  if (!str) return AVATAR_PALETTE[0];
+  let h = 0;
+  for (let i = 0; i < str.length; i++) { h = str.charCodeAt(i) + ((h << 5) - h); }
+  const palette = AVATAR_PALETTE[Math.abs(h) % AVATAR_PALETTE.length];
+  const [c1, c2] = palette.split(",");
+  return `linear-gradient(135deg,${c1},${c2})`;
+};
 
 const Bdg = ({ s, r }) => { const m = s ? STMAP[s] : r ? RMAP[r] : null; return m ? <span className={`bdg ${m.c}`}>{m.l}</span> : null; };
 const TT  = ({ active, payload, label }) => !active || !payload?.length ? null : (
@@ -2066,9 +2088,9 @@ function UsersPage({ users, setUsers, showT, loginHistory, logActivity }) {
           <thead><tr><th>Người dùng</th><th>Username</th><th>Liên hệ</th><th>Phòng ban</th><th>Vai trò</th><th>Đăng nhập cuối</th><th style={{ textAlign:"center" }}>Thao tác</th></tr></thead>
           <tbody>
             {fil.length === 0 && <tr><td colSpan={7} style={{ textAlign:"center", padding:"32px 0", color:"var(--t3)" }}>Không tìm thấy tài khoản nào</td></tr>}
-            {fil.map(u => { const gr = RGRAD[u.role] || "2563EB,8B5CF6"; return (
+            {fil.map(u => { const grad = getAvatarGrad(u.id || u.name); return (
               <tr key={u.id}>
-                <td><div style={{ display:"flex", alignItems:"center", gap:9 }}><div style={{ width:34, height:34, borderRadius:"50%", background:`linear-gradient(135deg,#${gr})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:700, color:"#fff", flexShrink:0 }}>{u.avatar}</div><div><p style={{ fontWeight:700, fontSize:13 }}>{u.name}</p><p style={{ fontSize:11, color:"var(--t3)", fontFamily:"monospace" }}>{u.id}</p></div></div></td>
+                <td><div style={{ display:"flex", alignItems:"center", gap:9 }}><div style={{ width:34, height:34, borderRadius:"50%", background:grad, display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:700, color:"#fff", flexShrink:0 }}>{u.avatar}</div><div><p style={{ fontWeight:700, fontSize:13 }}>{u.name}</p><p style={{ fontSize:11, color:"var(--t3)", fontFamily:"monospace" }}>{u.id}</p></div></div></td>
                 <td><span className="mn" style={{ fontSize:12, background:"var(--b2)", padding:"2px 7px", borderRadius:6 }}>@{u.username}</span></td>
                 <td><p style={{ fontSize:12 }}>{u.email}</p><p style={{ fontSize:11, color:"var(--t3)", marginTop:1 }}>{u.phone || "—"}</p></td>
                 <td><p style={{ fontSize:13 }}>{u.dept}</p><p style={{ fontSize:11, color:"var(--t3)" }}>{u.position || ""}</p></td>
@@ -2154,7 +2176,7 @@ function UsersPage({ users, setUsers, showT, loginHistory, logActivity }) {
       {modal === "view" && sel && createPortal(
         <div className="mo" onClick={e => e.target === e.currentTarget && close()}>
           <div className="mb as"><div className="mt"><User size={17} style={{ color:"#2563EB" }} />Chi tiết tài khoản<button className="btn btnS btnI" style={{ marginLeft:"auto" }} onClick={close}><X size={13} /></button></div>
-          <div style={{ textAlign:"center", padding:"6px 0 16px" }}><div style={{ width:64, height:64, borderRadius:"50%", background:`linear-gradient(135deg,#${RGRAD[sel.role] || "2563EB,8B5CF6"})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, fontWeight:800, color:"#fff", margin:"0 auto 11px", boxShadow:"0 0 22px rgba(37,99,235,.35)" }}>{sel.avatar}</div><p style={{ fontSize:17, fontWeight:800 }}>{sel.name}</p><p style={{ fontSize:12, color:"var(--t2)", marginTop:3 }}>@{sel.username}</p><div style={{ display:"flex", gap:8, justifyContent:"center", marginTop:9 }}><Bdg r={sel.role} /></div></div>
+          <div style={{ textAlign:"center", padding:"6px 0 16px" }}><div style={{ width:64, height:64, borderRadius:"50%", background:getAvatarGrad(sel.id || sel.name), display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, fontWeight:800, color:"#fff", margin:"0 auto 11px", boxShadow:"0 0 22px rgba(0,0,0,.2)" }}>{sel.avatar}</div><p style={{ fontSize:17, fontWeight:800 }}>{sel.name}</p><p style={{ fontSize:12, color:"var(--t2)", marginTop:3 }}>@{sel.username}</p><div style={{ display:"flex", gap:8, justifyContent:"center", marginTop:9 }}><Bdg r={sel.role} /></div></div>
           <div className="g2" style={{ gap:9 }}>{[["Mã",sel.id],["Email",sel.email],["SĐT",sel.phone||"—"],["Phòng ban",sel.dept||"—"],["Chức vụ",sel.position||"—"],["Đăng nhập cuối",sel.lastLogin]].map(([k,v])=><div key={k} style={{background:"var(--b2)",borderRadius:9,padding:"9px 11px"}}><p style={{fontSize:11,color:"var(--t3)",fontWeight:600}}>{k}</p><p style={{fontSize:12,fontWeight:600,marginTop:3}}>{v}</p></div>)}</div>
           <div style={{display:"flex",gap:8,justifyContent:"flex-end",marginTop:17}}><button className="btn btnS" onClick={()=>{setForm({...sel,password:""});setErrs({});setModal("edit")}}><Edit2 size={12}/>Sửa</button><button className="btn btnS" onClick={close}>Đóng</button></div></div>
         </div>,

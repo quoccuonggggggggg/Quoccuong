@@ -992,17 +992,52 @@ function ProductsPage({ prods, setProds, whs, showT, logActivity }) {
   );
 }
 
+const getWhForSupplier = (s, whs) => {
+  if (!s) return whs[0] || { id: "", name: "", status: "active" };
+  const nameLower = s.name.toLowerCase();
+  let whKw = "";
+  if (nameLower.includes("cmm") || nameLower.includes("apple")) whKw = "Kho A";
+  else if (nameLower.includes("sài gòn") || nameLower.includes("sai gon") || nameLower.includes("ikea")) whKw = "Kho B";
+  else if (nameLower.includes("schneider") || nameLower.includes("cornue")) whKw = "Kho C";
+  
+  if (whKw) {
+    const targetWh = whs.find(w => w.name.includes(whKw));
+    if (targetWh) {
+      return targetWh;
+    }
+  }
+  return whs[0] || { id: "", name: "", status: "active" };
+};
+
 /* ═══════════════════════════════════════════════════════════
    WAREHOUSES PAGE
 ═══════════════════════════════════════════════════════════ */
-function WarehousesPage({ whs, setWhs, prods, showT, logActivity, adminProfile }) {
+function WarehousesPage({ whs, setWhs, prods, showT, logActivity, adminProfile, supps, setSupps }) {
   const [modal, setModal]   = useState(null); const [sel, setSel] = useState(null); const [form, setForm] = useState({}); const [errs, setErrs] = useState({});
   const [activeWh, setActiveWh] = useState(null);
 
   const open = w => { setSel(w); setForm({ ...w, capacity:String(w.capacity), zones:String(w.zones) }); setErrs({}); setModal("edit"); };
   const del  = async () => { if (adminProfile?.role === "warehouse_manager") { showT("⚠️ Quản lý kho không có quyền xóa kho!", "warn"); setModal(null); return; } if (prods.some(p => p.wid === sel.id)) { showT("⚠️ Không thể xóa kho còn chứa sản phẩm", "warn"); setModal(null); return; } const { error } = await supabase.from('warehouses').delete().eq('id', sel.id); if (error) { showT("Lỗi xóa kho: " + error.message, "error"); return; } setWhs(p => p.filter(x => x.id !== sel.id)); showT(`🗑️ Đã xóa kho "${sel.name}"`, "error"); logActivity("🗑️", `Xóa kho hàng: ${sel.name}`); setModal(null); };
   const validate = () => { const e = {}; if (!form.name?.trim()) e.name = "Bắt buộc"; if (isNaN(+form.capacity) || +form.capacity <= 0) e.capacity = "Không hợp lệ"; if (isNaN(+form.zones) || +form.zones <= 0) e.zones = "Không hợp lệ"; if (!form.manager?.trim()) e.manager = "Bắt buộc"; setErrs(e); return !Object.keys(e).length; };
-  const save = async () => { if (!validate()) return; const dbData = { ten_kho: form.name, dia_chi: form.location || '', suc_chua: +form.capacity, so_khu_vuc: +form.zones, loai_kho: form.type || 'Kho thường', nhiet_do: form.temperature || '', quan_ly: form.manager, so_dien_thoai: form.phone || '', trang_thai: form.status || 'active' }; const { error } = await supabase.from('warehouses').update(dbData).eq('id', sel.id); if (error) { showT("Lỗi cập nhật kho: " + error.message, "error"); return; } setWhs(p => p.map(x => x.id === sel.id ? { ...x, ...form, capacity:+form.capacity, zones:+form.zones } : x)); showT(`✅ Đã cập nhật kho "${form.name}"`); logActivity("✏️", `Cập nhật thông tin kho: ${form.name}`); setModal(null); };
+  const save = async () => {
+    if (!validate()) return;
+    const dbData = { ten_kho: form.name, dia_chi: form.location || '', suc_chua: +form.capacity, so_khu_vuc: +form.zones, loai_kho: form.type || 'Kho thường', nhiet_do: form.temperature || '', quan_ly: form.manager, so_dien_thoai: form.phone || '', trang_thai: form.status || 'active' };
+    const { error } = await supabase.from('warehouses').update(dbData).eq('id', sel.id);
+    if (error) { showT("Lỗi cập nhật kho: " + error.message, "error"); return; }
+    if (form.status === "inactive") {
+      const inactiveSuppliers = supps.filter(s => getWhForSupplier(s, whs).id === sel.id);
+      if (inactiveSuppliers.length > 0) {
+        const ids = inactiveSuppliers.map(s => s.id);
+        const { error: supErr } = await supabase.from('app_suppliers').update({ ngung_giao_dich: true }).in('id', ids);
+        if (supErr) console.error("Failed to deactivate corresponding suppliers in database", supErr);
+        setSupps(prev => prev.map(s => ids.includes(s.id) ? { ...s, status: "inactive" } : s));
+      }
+    }
+    setWhs(p => p.map(x => x.id === sel.id ? { ...x, ...form, capacity:+form.capacity, zones:+form.zones } : x));
+    showT(`✅ Đã cập nhật kho "${form.name}"`);
+    logActivity("✏️", `Cập nhật thông tin kho: ${form.name}`);
+    setModal(null);
+  };
 
   const whProds = wid => prods.filter(p => p.wid === wid);
   const usedQ   = wid => whProds(wid).reduce((s, p) => s + p.stock, 0);
@@ -1126,22 +1161,6 @@ function WarehousesPage({ whs, setWhs, prods, showT, logActivity, adminProfile }
 /* ═══════════════════════════════════════════════════════════
    ORDER FORM MODAL (dùng chung nhập & xuất)
 ═══════════════════════════════════════════════════════════ */
-const getWhForSupplier = (s, whs) => {
-  if (!s) return whs[0] || { id: "", name: "", status: "active" };
-  const nameLower = s.name.toLowerCase();
-  let whKw = "";
-  if (nameLower.includes("cmm") || nameLower.includes("apple")) whKw = "Kho A";
-  else if (nameLower.includes("sài gòn") || nameLower.includes("sai gon") || nameLower.includes("ikea")) whKw = "Kho B";
-  else if (nameLower.includes("schneider") || nameLower.includes("cornue")) whKw = "Kho C";
-  
-  if (whKw) {
-    const targetWh = whs.find(w => w.name.includes(whKw));
-    if (targetWh) {
-      return targetWh;
-    }
-  }
-  return whs[0] || { id: "", name: "", status: "active" };
-};
 
 function OrderFormModal({ type, mode, order, prods, setProds, whs, supps, users, showT, onSave, onClose }) {
   const isImp = type === "imp";

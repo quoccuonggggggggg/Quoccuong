@@ -1943,7 +1943,7 @@ function SuppliersPage({ supps, setSupps, showT, logActivity }) {
               <Fld label="Người liên hệ"><input className="inp" value={form.contact} onChange={e=>setForm({...form,contact:e.target.value})} /></Fld>
               <Fld label="Đánh giá"><select className="inp" value={form.rating} onChange={e=>setForm({...form,rating:Number(e.target.value)})}>{[1,2,3,4,5].map(v => <option key={v} value={v}>{v} ★</option>)}</select></Fld>
               <Fld label="Công nợ (VNĐ)"><input type="number" className="inp" value={form.debt} onChange={e=>setForm({...form,debt:Number(e.target.value) || 0})} /></Fld>
-              <Fld label="Trạng thái"><select className="inp" value={form.status} onChange={e=>setForm({...form,status:e.target.value})}><option value="active">Đang giao dịch</option><option value="inactive">Ngừng giao dịch</option></select></Fld>
+              {modal === "edit" && <Fld label="Trạng thái"><select className="inp" value={form.status} onChange={e=>setForm({...form,status:e.target.value})}><option value="active">Đang giao dịch</option><option value="inactive">Ngừng giao dịch</option></select></Fld>}
             </div>
             <div style={{ display:"flex", gap:8, justifyContent:"flex-end", marginTop:17 }}><button className="btn btnS" onClick={() => setModal(null)}>Hủy</button><button className="btn btnP" onClick={save}>Lưu nhà cung cấp</button></div>
           </div>

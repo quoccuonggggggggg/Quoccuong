@@ -46,12 +46,12 @@ const SEED_PROD = [
   { id:"SP012", name:"Router WiFi 6 ASUS AX6000",   sku:"ASUS-AX6K",   category:"Mạng",      buyPrice:4800000,  sellPrice:6300000,  stock:9,  wid:"WH003", loc:"C-01-03", status:"low",      img:"📡", upd:"2024-12-04" },
 ];
 const SEED_SUPP = [
-  { id:"NCC001", name:"Apple Việt Nam",      code:"APPLE-VN", email:"supplier@apple.vn",   phone:"0281234567", address:"Quận 1, TP.HCM", contact:"Nguyễn Minh Tuấn", rating:5, status:"active",   debt:0,        orders:48 },
-  { id:"NCC002", name:"Dell Technologies VN",code:"DELL-VN",  email:"partner@dell.vn",     phone:"0282345678", address:"Quận 3, TP.HCM", contact:"Trần Thu Hương",   rating:4, status:"active",   debt:45000000, orders:62 },
-  { id:"NCC003", name:"Sony Electronics",    code:"SONY-VN",  email:"b2b@sony.vn",         phone:"0283456789", address:"Quận 5, TP.HCM", contact:"Phạm Văn Đức",    rating:5, status:"active",   debt:0,        orders:35 },
-  { id:"NCC004", name:"LG Display VN",       code:"LG-VN",    email:"lgvn@lg.com",         phone:"0284567890", address:"Bình Dương",     contact:"Hoàng Thị Mai",    rating:4, status:"active",   debt:12000000, orders:28 },
-  { id:"NCC005", name:"Cisco Systems VN",    code:"CISCO-VN", email:"vnpartner@cisco.com", phone:"0285678901", address:"Quận 7, TP.HCM", contact:"Lê Quang Huy",    rating:3, status:"inactive", debt:85000000, orders:15 },
-  { id:"NCC006", name:"Canon Vietnam",       code:"CANON-VN", email:"supply@canon.vn",     phone:"0286789012", address:"Hà Nội",         contact:"Vũ Thanh Lan",    rating:4, status:"active",   debt:0,        orders:41 },
+  { id:"NCC001", name:"Apple Việt Nam",      code:"APPLE-VN", email:"supplier@apple.vn",   phone:"0281234567", address:"Quận 1, TP.HCM", contact:"Nguyễn Minh Tuấn", rating:5, status:"active",   orders:48 },
+  { id:"NCC002", name:"Dell Technologies VN",code:"DELL-VN",  email:"partner@dell.vn",     phone:"0282345678", address:"Quận 3, TP.HCM", contact:"Trần Thu Hương",   rating:4, status:"active",   orders:62 },
+  { id:"NCC003", name:"Sony Electronics",    code:"SONY-VN",  email:"b2b@sony.vn",         phone:"0283456789", address:"Quận 5, TP.HCM", contact:"Phạm Văn Đức",    rating:5, status:"active",   orders:35 },
+  { id:"NCC004", name:"LG Display VN",       code:"LG-VN",    email:"lgvn@lg.com",         phone:"0284567890", address:"Bình Dương",     contact:"Hoàng Thị Mai",    rating:4, status:"active",   orders:28 },
+  { id:"NCC005", name:"Cisco Systems VN",    code:"CISCO-VN", email:"vnpartner@cisco.com", phone:"0285678901", address:"Quận 7, TP.HCM", contact:"Lê Quang Huy",    rating:3, status:"inactive", orders:15 },
+  { id:"NCC006", name:"Canon Vietnam",       code:"CANON-VN", email:"supply@canon.vn",     phone:"0286789012", address:"Hà Nội",         contact:"Vũ Thanh Lan",    rating:4, status:"active",   orders:41 },
 ];
 const SEED_IMP = [
   { id:"PN001", sid:"NCC002", sname:"Dell Technologies VN", wid:"WH001", wname:"Kho A", receiver:"Nguyễn Thị Lan", status:"completed", date:getDaysAgo(0), note:"",
@@ -1856,7 +1856,7 @@ function ExportsPage({ exps, setExps, prods, setProds, whs, users, showT, logAct
 /* ═══════════════════════════════════════════════════════════
    SUPPLIERS PAGE
 ═══════════════════════════════════════════════════════════ */
-const ESUP = { name:"", code:"", email:"", phone:"", address:"", contact:"", rating:5, status:"active", debt:0, orders:0 };
+const ESUP = { name:"", code:"", email:"", phone:"", address:"", contact:"", rating:5, status:"active", orders:0 };
 function SuppliersPage({ supps, setSupps, showT, logActivity }) {
   const [modal, setModal] = useState(null); const [form, setForm] = useState(ESUP); const [sel, setSel] = useState(null); const [errs, setErrs] = useState({});
   const validate = () => { const e = {}; if (!form.name?.trim()) e.name = "Bắt buộc"; if (!form.code?.trim()) e.code = "Bắt buộc"; setErrs(e); return !Object.keys(e).length; };
@@ -1866,7 +1866,7 @@ function SuppliersPage({ supps, setSupps, showT, logActivity }) {
     const dbData = {
       ten_doi_tac: form.name, ma_doi_tac: form.code, email: form.email,
       so_dien_thoai: form.phone, dia_chi: form.address, nguoi_lien_he: form.contact,
-      danh_gia: form.rating, cong_no: form.debt, ngung_giao_dich: form.status === 'inactive'
+      danh_gia: form.rating, ngung_giao_dich: form.status === 'inactive'
     };
     if (isAdd) {
       const { data, error } = await supabase.from('partners').insert([dbData]).select().single();
@@ -1922,11 +1922,6 @@ function SuppliersPage({ supps, setSupps, showT, logActivity }) {
             {[{ I:Mail, v:s.email }, { I:Phone, v:s.phone }, { I:MapPin, v:s.address }, { I:User, v:s.contact }].map(({ I, v }) => v ? (
               <div key={v} style={{ display:"flex", alignItems:"center", gap:7, fontSize:12, color:"var(--t2)", marginBottom:4 }}><I size={11} style={{ flexShrink:0, color:"var(--t3)" }} />{v}</div>
             ) : null)}
-            <div style={{ display:"flex", alignItems:"center", gap:7, fontSize:12, color:"var(--t2)", marginTop:8, paddingTop:8, borderTop:"1px dashed var(--bd)" }}>
-              <Receipt size={11} style={{ color:"var(--t3)" }} />
-              <span>Công nợ: </span>
-              <strong style={{ color: s.debt > 0 ? "#EF4444" : "#14B8A6" }}>{fmt(s.debt)} VNĐ</strong>
-            </div>
           </div>
         ))}
       </div>
@@ -1942,7 +1937,6 @@ function SuppliersPage({ supps, setSupps, showT, logActivity }) {
               <Fld label="Địa chỉ"><input className="inp" value={form.address} onChange={e=>setForm({...form,address:e.target.value})} /></Fld>
               <Fld label="Người liên hệ"><input className="inp" value={form.contact} onChange={e=>setForm({...form,contact:e.target.value})} /></Fld>
               <Fld label="Đánh giá"><select className="inp" value={form.rating} onChange={e=>setForm({...form,rating:Number(e.target.value)})}>{[1,2,3,4,5].map(v => <option key={v} value={v}>{v} ★</option>)}</select></Fld>
-              <Fld label="Công nợ (VNĐ)"><input type="number" className="inp" value={form.debt} onChange={e=>setForm({...form,debt:Number(e.target.value) || 0})} /></Fld>
               {modal === "edit" && <Fld label="Trạng thái"><select className="inp" value={form.status} onChange={e=>setForm({...form,status:e.target.value})}><option value="active">Đang giao dịch</option><option value="inactive">Ngừng giao dịch</option></select></Fld>}
             </div>
             <div style={{ display:"flex", gap:8, justifyContent:"flex-end", marginTop:17 }}><button className="btn btnS" onClick={() => setModal(null)}>Hủy</button><button className="btn btnP" onClick={save}>Lưu nhà cung cấp</button></div>
@@ -2683,7 +2677,7 @@ export default function App() {
         id: p.id, name: p.ten_doi_tac, code: p.ma_doi_tac,
         email: p.email, phone: p.so_dien_thoai, address: p.dia_chi,
         contact: p.nguoi_lien_he, rating: p.danh_gia,
-        status: p.ngung_giao_dich ? 'inactive' : 'active', debt: p.cong_no, orders: 0
+        status: p.ngung_giao_dich ? 'inactive' : 'active', orders: 0
       })));
 
       // 4. Fetch/Seed orders & order_items

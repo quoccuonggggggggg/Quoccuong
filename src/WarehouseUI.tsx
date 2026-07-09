@@ -1344,7 +1344,7 @@ function OrderFormModal({ type, mode, order, prods, setProds, whs, supps, users,
             )}
           </Fld>
           <Fld label="Ngày tạo">
-            {adminProfile?.role === "Admin" ? (
+            {adminProfile?.role?.toLowerCase() === "admin" ? (
               <input 
                 type="date" 
                 className="inp" 

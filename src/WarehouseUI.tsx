@@ -1344,13 +1344,25 @@ function OrderFormModal({ type, mode, order, prods, setProds, whs, supps, users,
             )}
           </Fld>
           <Fld label="Ngày tạo">
-            <input 
-              type="date" 
-              className="inp" 
-              disabled={adminProfile?.role !== "Admin"} 
-              value={form.date} 
-              onChange={e => setForm(p => ({ ...p, date: e.target.value }))} 
-            />
+            {adminProfile?.role === "Admin" ? (
+              <input 
+                type="date" 
+                className="inp" 
+                value={form.date} 
+                onChange={e => setForm(p => ({ ...p, date: e.target.value }))} 
+              />
+            ) : (
+              <input 
+                type="text" 
+                className="inp" 
+                disabled 
+                value={(() => {
+                  if (!form.date) return "";
+                  const parts = form.date.split("-");
+                  return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : form.date;
+                })()} 
+              />
+            )}
           </Fld>
           <div style={{ gridColumn:"1/-1" }}><Fld label="Ghi chú"><input className="inp" placeholder="Ghi chú..." value={form.note || ""} onChange={e => setForm(p => ({ ...p, note:e.target.value }))} /></Fld></div>
         </div>

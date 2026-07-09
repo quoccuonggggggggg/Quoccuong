@@ -1040,10 +1040,10 @@ function WarehousesPage({ whs, setWhs, prods, showT, logActivity, adminProfile, 
 
   const open = w => { setSel(w); setForm({ ...w, capacity:String(w.capacity), zones:String(w.zones) }); setErrs({}); setModal("edit"); };
   const del  = async () => { if (adminProfile?.role === "warehouse_manager") { showT("⚠️ Quản lý kho không có quyền xóa kho!", "warn"); setModal(null); return; } if (prods.some(p => p.wid === sel.id)) { showT("⚠️ Không thể xóa kho còn chứa sản phẩm", "warn"); setModal(null); return; } const { error } = await supabase.from('warehouses').delete().eq('id', sel.id); if (error) { showT("Lỗi xóa kho: " + error.message, "error"); return; } setWhs(p => p.filter(x => x.id !== sel.id)); showT(`🗑️ Đã xóa kho "${sel.name}"`, "error"); logActivity("🗑️", `Xóa kho hàng: ${sel.name}`); setModal(null); };
-  const validate = () => { const e = {}; if (!form.name?.trim()) e.name = "Bắt buộc"; if (isNaN(+form.capacity) || +form.capacity <= 0) e.capacity = "Không hợp lệ"; if (isNaN(+form.zones) || +form.zones <= 0) e.zones = "Không hợp lệ"; if (!form.manager?.trim()) e.manager = "Bắt buộc"; setErrs(e); return !Object.keys(e).length; };
+  const validate = () => { const e = {}; if (!form.name?.trim()) e.name = "Bắt buộc"; if (isNaN(+form.zones) || +form.zones <= 0) e.zones = "Không hợp lệ"; if (!form.manager?.trim()) e.manager = "Bắt buộc"; setErrs(e); return !Object.keys(e).length; };
   const save = async () => {
     if (!validate()) return;
-    const dbData = { ten_kho: form.name, dia_chi: form.location || '', suc_chua: +form.capacity, so_khu_vuc: +form.zones, loai_kho: form.type || 'Kho thường', nhiet_do: form.temperature || '', quan_ly: form.manager, so_dien_thoai: form.phone || '', trang_thai: form.status || 'active' };
+    const dbData = { ten_kho: form.name, dia_chi: form.location || '', so_khu_vuc: +form.zones, loai_kho: form.type || 'Kho thường', nhiet_do: form.temperature || '', quan_ly: form.manager, so_dien_thoai: form.phone || '', trang_thai: form.status || 'active' };
     const { error } = await supabase.from('warehouses').update(dbData).eq('id', sel.id);
     if (error) { showT("Lỗi cập nhật kho: " + error.message, "error"); return; }
     if (form.status === "inactive") {
@@ -1055,7 +1055,7 @@ function WarehousesPage({ whs, setWhs, prods, showT, logActivity, adminProfile, 
         setSupps(prev => prev.map(s => ids.includes(s.id) ? { ...s, status: "inactive" } : s));
       }
     }
-    setWhs(p => p.map(x => x.id === sel.id ? { ...x, ...form, capacity:+form.capacity, zones:+form.zones } : x));
+    setWhs(p => p.map(x => x.id === sel.id ? { ...x, ...form, capacity: sel.capacity, zones:+form.zones } : x));
     showT(`✅ Đã cập nhật kho "${form.name}"`);
     logActivity("✏️", `Cập nhật thông tin kho: ${form.name}`);
     setModal(null);
@@ -1153,7 +1153,7 @@ function WarehousesPage({ whs, setWhs, prods, showT, logActivity, adminProfile, 
             <div className="g2" style={{ gap:10 }}>
               <div style={{ gridColumn:"1/-1" }}><Fld label="Tên kho" req error={errs.name}><input className="inp" value={form.name || ""} onChange={e => setForm(p => ({ ...p, name:e.target.value }))} style={{ borderColor:errs.name ? "#EF4444" : undefined }} /></Fld></div>
               <Fld label="Địa chỉ"><input className="inp" value={form.location || ""} onChange={e => setForm(p => ({ ...p, location:e.target.value }))} /></Fld>
-              <Fld label="Sức chứa (đv)" req error={errs.capacity}><input className="inp" value={form.capacity || ""} onChange={e => setForm(p => ({ ...p, capacity:e.target.value }))} style={{ borderColor:errs.capacity ? "#EF4444" : undefined }} /></Fld>
+              <Fld label="Sức chứa (đv)"><input className="inp" value={form.capacity || ""} disabled style={{ opacity:0.6, cursor:"not-allowed" }} /></Fld>
               <Fld label="Số khu vực" req error={errs.zones}><input className="inp" value={form.zones || ""} onChange={e => setForm(p => ({ ...p, zones:e.target.value }))} style={{ borderColor:errs.zones ? "#EF4444" : undefined }} /></Fld>
               <Fld label="Loại kho"><select className="inp" value={form.type || "Kho thường"} onChange={e => setForm(p => ({ ...p, type:e.target.value }))}><option>Kho thường</option><option>Kho lạnh</option><option>Kho hóa chất</option><option>Kho ngoài trời</option></select></Fld>
               <Fld label="Nhiệt độ"><input className="inp" placeholder="18-22°C" value={form.temperature || ""} onChange={e => setForm(p => ({ ...p, temperature:e.target.value }))} /></Fld>

@@ -1182,7 +1182,7 @@ function OrderFormModal({ type, mode, order, prods, setProds, whs, supps, users,
     const activeWhs = whs.filter(w => w.status !== "inactive");
     const defaultWh = isImp ? getWhForSupplier(defaultSup, whs) : (activeWhs[0] || whs[0] || { id: "", name: "", status: "active" });
     return {
-      ...(isImp ? { sid:defaultSup?.id || "", sname:defaultSup?.name || "", receiver:"" } : { customer:"", handler:"" }),
+      ...(isImp ? { sid:defaultSup?.id || "", sname:defaultSup?.name || "", receiver: importUsers[0]?.name || "" } : { customer:"", handler: exportUsers[0]?.name || "" }),
       wid:defaultWh.id, wname:defaultWh.name, status:"completed", date:today(), note:"", items:[],
     };
   });
@@ -1256,7 +1256,9 @@ function OrderFormModal({ type, mode, order, prods, setProds, whs, supps, users,
   const validate = () => {
     const e = {};
     if (isImp && !form.sid) e.sid = "Chọn nhà CC";
+    if (isImp && !form.receiver?.trim()) e.receiver = "Bắt buộc";
     if (!isImp && !form.customer?.trim()) e.customer = "Bắt buộc";
+    if (!isImp && !form.handler?.trim()) e.handler = "Bắt buộc";
     if (form.items.length === 0) {
       e.items = "Cần ít nhất 1 sản phẩm";
     } else if (!isImp && form.status === "completed") {
@@ -1316,13 +1318,13 @@ function OrderFormModal({ type, mode, order, prods, setProds, whs, supps, users,
                 })}
               </select>
             </Fld>
-            <Fld label="Người xử lý">
-              <select className="inp" value={form.receiver} onChange={e => setForm(p => ({ ...p, receiver:e.target.value }))}><option value="">Chọn người xử lý</option>{importUsers.map(u => <option key={u.id}>{u.name}</option>)}</select>
+            <Fld label="Người xử lý" req error={errs.receiver}>
+              <select className="inp" style={{ borderColor: errs.receiver ? "#EF4444" : undefined }} value={form.receiver} onChange={e => setForm(p => ({ ...p, receiver:e.target.value }))}>{importUsers.map(u => <option key={u.id}>{u.name}</option>)}</select>
             </Fld>
           </>) : (<>
             <Fld label="Khách hàng / Đơn vị nhận" req error={errs.customer}><input className="inp" placeholder="Tên công ty / cá nhân" value={form.customer || ""} onChange={e => setForm(p => ({ ...p, customer:e.target.value }))} style={{ borderColor:errs.customer ? "#EF4444" : undefined }} /></Fld>
-            <Fld label="Người xử lý">
-              <select className="inp" value={form.handler || ""} onChange={e => setForm(p => ({ ...p, handler:e.target.value }))}><option value="">Chọn người xử lý</option>{exportUsers.map(u => <option key={u.id}>{u.name}</option>)}</select>
+            <Fld label="Người xử lý" req error={errs.handler}>
+              <select className="inp" style={{ borderColor: errs.handler ? "#EF4444" : undefined }} value={form.handler || ""} onChange={e => setForm(p => ({ ...p, handler:e.target.value }))}>{exportUsers.map(u => <option key={u.id}>{u.name}</option>)}</select>
             </Fld>
           </>)}
           <Fld label={`Kho ${isImp ? "nhập" : "xuất"}`}>

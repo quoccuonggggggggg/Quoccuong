@@ -1298,6 +1298,21 @@ function OrderFormModal({ type, mode, order, prods, setProds, whs, supps, users,
         }
       }
     }
+    if (isImp && form.status === "completed") {
+      const wh = whs.find(w => w.id === form.wid);
+      if (wh && wh.capacity) {
+        const currentUsed = prods.filter(p => p.wid === form.wid).reduce((s, p) => s + p.stock, 0);
+        const incoming = form.items.reduce((s, i) => s + (+i.qty || 0), 0);
+        // Nếu đang sửa phiếu đã hoàn thành, trừ số lượng cũ (vì đã tính vào stock rồi)
+        const alreadyCounted = (order && order.status === "completed")
+          ? order.items.reduce((s, i) => s + i.qty, 0)
+          : 0;
+        const netIncoming = incoming - alreadyCounted;
+        if (currentUsed + netIncoming > wh.capacity) {
+          e.items = `Kho "${wh.name}" không đủ sức chứa! Đang dùng: ${currentUsed}/${wh.capacity} đv, cần nhập thêm ${netIncoming} đv (vượt ${currentUsed + netIncoming - wh.capacity} đv).`;
+        }
+      }
+    }
     setErrs(e);
     return !Object.keys(e).length;
   };
@@ -1365,6 +1380,39 @@ function OrderFormModal({ type, mode, order, prods, setProds, whs, supps, users,
               </select>
             )}
           </Fld>
+          {isImp && (() => {
+            const wh = whs.find(w => w.id === form.wid);
+            if (!wh || !wh.capacity) return null;
+            const used = prods.filter(p => p.wid === form.wid).reduce((s, p) => s + p.stock, 0);
+            const incoming = form.items.reduce((s, i) => s + (+i.qty || 0), 0);
+            const alreadyCounted = (order && order.status === "completed") ? order.items.reduce((s, i) => s + i.qty, 0) : 0;
+            const afterImport = used + incoming - alreadyCounted;
+            const remaining = wh.capacity - used;
+            const pct = Math.min(100, Math.round(afterImport / wh.capacity * 100));
+            const col = pct >= 100 ? "#EF4444" : pct >= 80 ? "#F59E0B" : "#14B8A6";
+            return (
+              <div style={{ gridColumn:"1/-1", background:"var(--b2)", borderRadius:9, padding:"9px 13px", fontSize:12 }}>
+                <div style={{ display:"flex", justifyContent:"space-between", marginBottom:5 }}>
+                  <span style={{ color:"var(--t2)" }}>Sức chứa kho: <strong style={{ color:"var(--t1)" }}>{used}/{wh.capacity} đv đang dùng</strong></span>
+                  <span style={{ fontWeight:700, color: remaining <= 0 ? "#EF4444" : remaining < wh.capacity * 0.2 ? "#F59E0B" : "#14B8A6" }}>
+                    Còn trống: {Math.max(0, remaining)} đv
+                  </span>
+                </div>
+                {incoming > 0 && (
+                  <div style={{ display:"flex", justifyContent:"space-between", marginBottom:6, fontSize:11, color:"var(--t3)" }}>
+                    <span>Sau khi nhập ({incoming} đv): {afterImport}/{wh.capacity} đv</span>
+                    <span style={{ color: col, fontWeight:600 }}>{pct}%</span>
+                  </div>
+                )}
+                <div style={{ height:6, borderRadius:99, background:"var(--bd)", overflow:"hidden" }}>
+                  <div style={{ height:"100%", width:`${Math.min(100, Math.round(afterImport / wh.capacity * 100))}%`, background:col, borderRadius:99, transition:"width .3s" }} />
+                </div>
+                {afterImport > wh.capacity && (
+                  <p style={{ marginTop:5, color:"#EF4444", fontWeight:600, fontSize:11 }}>⚠️ Vượt quá sức chứa {afterImport - wh.capacity} đv!</p>
+                )}
+              </div>
+            );
+          })()}
           <Fld label="Ngày tạo">
             {adminProfile?.role?.toLowerCase() === "admin" ? (
               <input 

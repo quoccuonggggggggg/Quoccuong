@@ -819,7 +819,7 @@ function Dashboard({ prods, whs, imps, exps, dark, logActivity }) {
 ═══════════════════════════════════════════════════════════ */
 const EP0 = { name:"", sku:"", category:"Điện tử", buyPrice:"", sellPrice:"", stock:"0", wid:"WH001", loc:"", img:"📦", desc:"" };
 
-function ProductsPage({ prods, setProds, whs, showT, logActivity }) {
+function ProductsPage({ prods, setProds, whs, showT, logActivity, setImps, setExps }) {
   const [srch, setSrch]   = useState(""); const [catF, setCatF] = useState("all"); const [whF, setWhF] = useState("all"); const [stF, setStF] = useState("all");
   const [modal, setModal] = useState(null); const [sel, setSel] = useState(null);
   const [errs, setErrs] = useState({});
@@ -888,9 +888,29 @@ function ProductsPage({ prods, setProds, whs, showT, logActivity }) {
     setModal(null); setSel(null);
   };
   const del = async () => {
+    // 1. Xóa các order_items liên quan trước để tránh lỗi ràng buộc khóa ngoại
+    const { error: errItems } = await supabase.from('order_items').delete().eq('good_id', sel.id);
+    if (errItems) { showT("Lỗi xóa chi tiết đơn hàng: " + errItems.message, "error"); return; }
+
+    // 2. Xóa sản phẩm khỏi bảng goods
     const { error } = await supabase.from('goods').delete().eq('id', sel.id);
     if (error) { showT("Lỗi: " + error.message, "error"); return; }
+
+    // 3. Cập nhật state local
     setProds(p => p.filter(x => x.id !== sel.id));
+    if (setImps) {
+      setImps(prev => prev.map(o => ({
+        ...o,
+        items: o.items.filter(item => item.pid !== sel.id)
+      })));
+    }
+    if (setExps) {
+      setExps(prev => prev.map(o => ({
+        ...o,
+        items: o.items.filter(item => item.pid !== sel.id)
+      })));
+    }
+
     showT(`🗑️ Đã xóa "${sel.name}"`, "error");
     logActivity("🗑️", `Xóa sản phẩm: ${sel.name} (${sel.sku})`);
     setModal(null);
@@ -1016,6 +1036,10 @@ function ProductsPage({ prods, setProds, whs, showT, logActivity }) {
 
 const getWhForSupplier = (s, whs) => {
   if (!s) return whs[0] || { id: "", name: "", status: "active" };
+  if (s.wid) {
+    const found = whs.find(w => w.id === s.wid);
+    if (found) return found;
+  }
   const nameLower = s.name.toLowerCase();
   let whKw = "";
   if (nameLower.includes("cmm") || nameLower.includes("apple")) whKw = "Kho A";
@@ -1904,8 +1928,8 @@ function ExportsPage({ exps, setExps, prods, setProds, whs, users, showT, logAct
 /* ═══════════════════════════════════════════════════════════
    SUPPLIERS PAGE
 ═══════════════════════════════════════════════════════════ */
-const ESUP = { name:"", code:"", email:"", phone:"", address:"", contact:"", rating:5, status:"active", orders:0 };
-function SuppliersPage({ supps, setSupps, showT, logActivity }) {
+const ESUP = { name:"", code:"", email:"", phone:"", address:"", contact:"", rating:5, status:"active", wid:"", orders:0 };
+function SuppliersPage({ supps, setSupps, showT, logActivity, whs }) {
   const [modal, setModal] = useState(null); const [form, setForm] = useState(ESUP); const [sel, setSel] = useState(null); const [errs, setErrs] = useState({});
   const validate = () => { const e = {}; if (!form.name?.trim()) e.name = "Bắt buộc"; if (!form.code?.trim()) e.code = "Bắt buộc"; setErrs(e); return !Object.keys(e).length; };
   const save = async () => {
@@ -1913,7 +1937,9 @@ function SuppliersPage({ supps, setSupps, showT, logActivity }) {
     const isAdd = modal === "add";
     const dbData = {
       ten_doi_tac: form.name, ma_doi_tac: form.code, email: form.email,
-      so_dien_thoai: form.phone, dia_chi: form.address, nguoi_lien_he: form.contact,
+      so_dien_thoai: form.phone, 
+      dia_chi: form.address + (form.wid ? `|wh:${form.wid}` : ''), 
+      nguoi_lien_he: form.contact,
       danh_gia: form.rating, ngung_giao_dich: form.status === 'inactive'
     };
     if (isAdd) {
@@ -1970,6 +1996,15 @@ function SuppliersPage({ supps, setSupps, showT, logActivity }) {
             {[{ I:Mail, v:s.email }, { I:Phone, v:s.phone }, { I:MapPin, v:s.address }, { I:User, v:s.contact }].map(({ I, v }) => v ? (
               <div key={v} style={{ display:"flex", alignItems:"center", gap:7, fontSize:12, color:"var(--t2)", marginBottom:4 }}><I size={11} style={{ flexShrink:0, color:"var(--t3)" }} />{v}</div>
             ) : null)}
+            {(() => {
+              const wh = getWhForSupplier(s, whs);
+              return wh ? (
+                <div style={{ display:"flex", alignItems:"center", gap:7, fontSize:12, color:"var(--t2)", marginBottom:4 }}>
+                  <Warehouse size={11} style={{ flexShrink:0, color:"var(--t3)" }} />
+                  <span>Kho liên kết: <strong>{wh.name}</strong></span>
+                </div>
+              ) : null;
+            })()}
           </div>
         ))}
       </div>
@@ -1985,6 +2020,12 @@ function SuppliersPage({ supps, setSupps, showT, logActivity }) {
               <Fld label="Địa chỉ"><input className="inp" value={form.address} onChange={e=>setForm({...form,address:e.target.value})} /></Fld>
               <Fld label="Người liên hệ"><input className="inp" value={form.contact} onChange={e=>setForm({...form,contact:e.target.value})} /></Fld>
               <Fld label="Đánh giá"><select className="inp" value={form.rating} onChange={e=>setForm({...form,rating:Number(e.target.value)})}>{[1,2,3,4,5].map(v => <option key={v} value={v}>{v} ★</option>)}</select></Fld>
+              <Fld label="Kho liên kết"><select className="inp" value={form.wid || ""} onChange={e=>setForm({...form,wid:e.target.value})}>
+                <option value="">-- Mặc định (Tự động khớp) --</option>
+                {whs.map(w => (
+                  <option key={w.id} value={w.id}>{w.name}</option>
+                ))}
+              </select></Fld>
               {modal === "edit" && <Fld label="Trạng thái"><select className="inp" value={form.status} onChange={e=>setForm({...form,status:e.target.value})}><option value="active">Đang giao dịch</option><option value="inactive">Ngừng giao dịch</option></select></Fld>}
             </div>
             <div style={{ display:"flex", gap:8, justifyContent:"flex-end", marginTop:17 }}><button className="btn btnS" onClick={() => setModal(null)}>Hủy</button><button className="btn btnP" onClick={save}>Lưu nhà cung cấp</button></div>
@@ -2721,12 +2762,17 @@ export default function App() {
 
       // 3. Fetch partners (suppliers)
       const { data: partData } = await supabase.from('partners').select('*');
-      if (partData) setSupps(partData.map(p => ({
-        id: p.id, name: p.ten_doi_tac, code: p.ma_doi_tac,
-        email: p.email, phone: p.so_dien_thoai, address: p.dia_chi,
-        contact: p.nguoi_lien_he, rating: p.danh_gia,
-        status: p.ngung_giao_dich ? 'inactive' : 'active', orders: 0
-      })));
+      if (partData) setSupps(partData.map(p => {
+        const whMatch = p.dia_chi?.match(/\|wh:(.+)$/);
+        const wid = whMatch ? whMatch[1] : "";
+        const cleanAddress = p.dia_chi ? p.dia_chi.replace(/\|wh:(.+)$/, '') : '';
+        return {
+          id: p.id, name: p.ten_doi_tac, code: p.ma_doi_tac,
+          email: p.email, phone: p.so_dien_thoai, address: cleanAddress,
+          contact: p.nguoi_lien_he, rating: p.danh_gia,
+          status: p.ngung_giao_dich ? 'inactive' : 'active', wid: wid, orders: 0
+        };
+      }));
 
       // 4. Fetch/Seed orders & order_items
       let { data: ords } = await supabase.from('orders').select(`

@@ -132,7 +132,7 @@ const CSS = `
 .ndot{position:absolute;top:5px;right:5px;width:7px;height:7px;background:#EF4444;border-radius:50%;border:2px solid var(--b1)}
 .main{display:flex;flex-direction:column;min-height:100vh;transition:margin-left .3s cubic-bezier(.4,0,.2,1), width .3s cubic-bezier(.4,0,.2,1);min-width:0}
 .pc{flex:1;padding:22px}
-.card{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:20px;backdrop-filter:blur(10px)}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:20px;backdrop-filter:blur(10px);overflow-x:auto}
 .kpc{background:var(--card);border:2px solid var(--bd);border-radius:15px;padding:15px 17px;cursor:pointer;transition:all .22s cubic-bezier(.4,0,.2,1);position:relative;overflow:hidden}
 .kpc:hover{transform:translateY(-2px)}
 .dt{width:100%;border-collapse:collapse;font-size:15px}
@@ -145,7 +145,7 @@ const CSS = `
 .by{background:rgba(245,158,11,.12);color:#F59E0B}.bb{background:rgba(37,99,235,.12);color:#3B82F6}
 .bgr{background:rgba(148,163,184,.12);color:#94A3B8}.bp{background:rgba(139,92,246,.12);color:#8B5CF6}
 .bc{background:rgba(6,182,212,.12);color:#06B6D4}
-.btn{display:inline-flex;align-items:center;gap:5px;padding:7px 15px;border-radius:9px;font-size:15px;font-weight:600;border:none;cursor:pointer;transition:all .18s;font-family:inherit}
+.btn{display:inline-flex;align-items:center;gap:5px;padding:7px 15px;border-radius:999px;font-size:15px;font-weight:600;border:none;cursor:pointer;transition:all .18s;font-family:inherit}
 .btnP{background:linear-gradient(135deg,#2563EB,#1D4ED8);color:#fff;box-shadow:0 4px 14px rgba(37,99,235,.35)}
 .btnP:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(37,99,235,.45)}
 .btnS{background:var(--b2);color:var(--t1);border:1px solid var(--bd2)}.btnS:hover{background:var(--b3)}
@@ -156,7 +156,7 @@ const CSS = `
 .inp{background:var(--b2);border:1px solid var(--bd2);border-radius:9px;padding:7px 11px;font-size:15px;color:var(--t1);font-family:inherit;outline:none;transition:border-color .18s;width:100%}
 .inp:focus{border-color:#2563EB;box-shadow:0 0 0 3px rgba(37,99,235,.1)}
 .inp::placeholder{color:var(--t3)}
-select.inp option{background:var(--b1)}
+.select.inp option{background:var(--b1)}
 .mo{position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(5px);z-index:200;display:flex;align-items:center;justify-content:center}
 .mb{background:var(--b1);border:1px solid var(--bd2);border-radius:20px;padding:25px;width:95%;max-width:960px;max-height:92vh;overflow-y:auto}
 .mb-lg{max-width:1300px;width:95%}.mb-sm{max-width:480px;width:90%}
@@ -182,6 +182,25 @@ select.inp option{background:var(--b1)}
 .ddi:hover{background:var(--b2)}
 .ddiv{height:1px;background:var(--bd);margin:5px 0}
 ::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--bd2);border-radius:999px}
+
+@media(max-width:992px){
+  .dashboard-grids {grid-template-columns:1fr !important}
+}
+@media(max-width:768px){
+  .sb {transform:translateX(-100%);width:256px !important}
+  .sb.col {width:256px !important}
+  .sb:not(.hide) {transform:translateX(0) !important}
+  .main {margin-left:0 !important;width:100% !important}
+  .dashboard-charts {grid-template-columns:1fr !important}
+  .pc {padding:12px !important}
+  .tb {padding:0 12px !important}
+  .mb {padding:15px !important;border-radius:12px !important}
+  .hide-mobile {display:none !important}
+}
+@media(max-width:600px){
+  .g2, .g3, .g4, .g5 {grid-template-columns:1fr !important}
+}
+.sb-overlay {position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:90;backdrop-filter:blur(2px)}
 `;
 
 /* ═══════════════════════════════════════════════════════════
@@ -526,7 +545,7 @@ function Topbar({ dark, onDark, pg, nc, onLogout, onAction, adminProfile, prods,
         <span style={{ fontSize: 13, fontWeight: 600 }}>{LBL[pg] || pg}</span>
       </div>
       <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
-        <span style={{ fontSize: 12, color: "var(--t2)" }}>{new Date().toLocaleDateString("vi-VN", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" })}</span>
+        <span className="hide-mobile" style={{ fontSize: 12, color: "var(--t2)" }}>{new Date().toLocaleDateString("vi-VN", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" })}</span>
         <button className="ib" onClick={onDark}>{dark ? <Sun size={15} /> : <Moon size={15} />}</button>
         <div style={{ position: "relative" }}>
           <button className="ib" onClick={() => setShowNotif(v => !v)}><AlertTriangle size={15} />{nc > 0 && <span className="ndot" />}</button>
@@ -696,7 +715,7 @@ function Dashboard({ prods, whs, imps, exps, dark, logActivity }) {
           </div>
         ))}
       </div>
-      <div style={{ display:"grid", gridTemplateColumns:"2fr 1fr", gap:14, marginBottom:14 }}>
+      <div className="dashboard-charts" style={{ display:"grid", gridTemplateColumns:"2fr 1fr", gap:14, marginBottom:14 }}>
         <div className="card">
           <div className="st"><BarChart2 size={15} style={{ color:"#2563EB" }} />Lưu lượng nhập/xuất (7 ngày)</div>
           <ResponsiveContainer width="100%" height={205}>
@@ -718,7 +737,7 @@ function Dashboard({ prods, whs, imps, exps, dark, logActivity }) {
           {dynamicPie.map(it => <div key={it.n} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", fontSize:12, marginBottom:3 }}><div style={{ display:"flex", alignItems:"center", gap:5 }}><span style={{ width:8, height:8, borderRadius:2, background:it.c, display:"inline-block" }} /><span style={{ color:"var(--t2)" }}>{it.n}</span></div><span style={{ fontWeight:700 }}>{it.v}%</span></div>)}
         </div>
       </div>
-      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:14 }}>
+      <div className="dashboard-grids" style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:14 }}>
         <div className="card">
           <div className="st"><Warehouse size={15} style={{ color:"#06B6D4" }} />Công suất kho</div>
           <table className="dt">
@@ -2371,7 +2390,7 @@ function ReportsPage({ prods, imps, exps, dark, logActivity, whs, adminProfile }
         <div className="g4" style={{ marginBottom:17 }}>{[{ l:"Tổng nhập (HT)", v:fmtM(imps.filter(o => o.status === "completed").reduce((s, o) => s + orderTotal(o.items), 0)), c:"#2563EB" }, { l:"Tổng xuất (HT)", v:fmtM(exps.filter(o => o.status === "completed").reduce((s, o) => s + orderTotal(o.items), 0)), c:"#14B8A6" }, { l:"Tổng tồn kho", v:`${prods.reduce((s, p) => s + p.stock, 0)} SP`, c:"#8B5CF6" }, { l:"Giá trị tồn", v:fmtM(prods.reduce((s, p) => s + p.stock * p.buyPrice, 0)), c:"#F59E0B" }].map(({ l, v, c }) => <div key={l} className="card"><p style={{ fontSize:12, color:"var(--t2)", fontWeight:600 }}>{l}</p><p style={{ fontSize:22, fontWeight:800, marginTop:7, color:c }}>{v}</p></div>)}</div>
       )}
       {!["import_staff", "export_staff"].includes(adminProfile?.role) && (
-        <div style={{ display:"grid", gridTemplateColumns:"2fr 1fr", gap:14, marginBottom:14 }}>
+        <div className="dashboard-charts" style={{ display:"grid", gridTemplateColumns:"2fr 1fr", gap:14, marginBottom:14 }}>
           <div className="card"><div className="st"><BarChart2 size={14} style={{ color:"#2563EB" }} />Nhập/Xuất kho (6 tháng)</div>
             <ResponsiveContainer width="100%" height={220}><BarChart data={dynamicBar} margin={{ top:5, right:8, bottom:5, left:-10 }}><CartesianGrid strokeDasharray="3 3" stroke={gc} /><XAxis dataKey="m" tick={{ fill:tc, fontSize:11 }} axisLine={false} tickLine={false} /><YAxis tick={{ fill:tc, fontSize:11 }} axisLine={false} tickLine={false} /><Tooltip content={<TT />} /><Legend wrapperStyle={{ fontSize:12, color:tc }} /><Bar dataKey="n" name="Nhập kho (Tr.đ)" fill="#2563EB" radius={[3,3,0,0]} /><Bar dataKey="x" name="Xuất kho (Tr.đ)" fill="#06B6D4" radius={[3,3,0,0]} /></BarChart></ResponsiveContainer></div>
           <div className="card"><div className="st"><Target size={14} style={{ color:"#8B5CF6" }} />Danh mục</div>
@@ -2494,6 +2513,7 @@ export default function App() {
   const [sbH,   setSbH]   = useState(false);
   const [toast, setToast] = useState(null);
   const [activities, setActivities] = useState([]);
+  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
     if (dark) {
@@ -2512,6 +2532,21 @@ export default function App() {
       document.body.style.color = "#0F172A";
     }
   }, [dark]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth <= 768;
+      setIsMobile(mobile);
+      if (mobile) {
+        setSbH(true);
+      } else {
+        setSbH(false);
+      }
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   const logActivity = async (icon, content) => {
     const actor = adminProfile.email || "Admin";
@@ -3122,8 +3157,9 @@ export default function App() {
       <style>{CSS}</style>
       <Toast t={toast} close={() => setToast(null)} />
       <div className={`app${dark ? " dark" : " light"}`}>
+        {isMobile && !sbH && <div className="sb-overlay" onClick={() => setSbH(true)} />}
         <Sidebar cur={pg} onNav={setPg} col={col} onCol={() => setCol(v => !v)} sbH={sbH} onLogout={handleLogout} adminProfile={adminProfile} />
-        <div className="main" style={{ marginLeft: ml, width: `calc(100% - ${ml}px)`, flex: 1 }}>
+        <div className="main" style={{ marginLeft: isMobile ? 0 : ml, width: isMobile ? "100%" : `calc(100% - ${ml}px)`, flex: 1 }}>
           <Topbar dark={dark} onDark={() => setDark(v => !v)} pg={pg} nc={nc} onLogout={handleLogout} onAction={setSysModal} adminProfile={adminProfile} prods={prods} onToggleSidebar={() => setSbH(v => !v)} />
           <div className="pc">{renderPage()}</div>
         </div>
